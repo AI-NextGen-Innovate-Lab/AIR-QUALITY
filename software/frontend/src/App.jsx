@@ -29,6 +29,8 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/api-docs" element={<APIDocumentation />} />
+
 
           {/* Protected routes */}
           <Route
@@ -75,14 +77,7 @@ function App() {
               </ProtectedRoutes>
             }
           />
-           <Route
-            path="/api-docs"
-            element={
-              <ProtectedRoutes>
-                <APIDocumentation />
-              </ProtectedRoutes>
-            }
-          />
+          
 
           <Route
             path="/profile"

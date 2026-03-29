@@ -12,11 +12,9 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [showVerification, setShowVerification] = useState(false);
 
-  // Login
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  // Register
   const [registerName, setRegisterName] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
@@ -30,7 +28,7 @@ export default function LoginPage() {
     try {
       const success = await login(loginEmail, loginPassword);
       if (success) {
-        navigate("/");
+        navigate("/dashboard");
       } else {
         setError("Invalid email or password");
       }
@@ -58,12 +56,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const success = await register(
-        registerName,
-        registerEmail,
-        registerPassword
-      );
-
+      const success = await register(registerName, registerEmail, registerPassword);
       if (success) {
         setShowVerification(true);
       } else {
@@ -76,24 +69,23 @@ export default function LoginPage() {
     }
   };
 
-  // ✅ Verification screen
   if (showVerification) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-blue-500 p-4">
-        <div className="bg-white p-8 rounded-lg w-full max-w-md text-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-500 p-4">
+        <div className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md text-center">
           <Mail className="mx-auto mb-4 text-green-600" size={40} />
-          <h2 className="text-xl font-bold mb-2">Check Your Email</h2>
+          <h2 className="text-2xl font-bold mb-2">Verify Your Email</h2>
           <p className="text-gray-600 mb-4">
             Code sent to <strong>{registerEmail}</strong>
           </p>
 
-          <p className="text-sm bg-gray-100 p-2 rounded mb-4">
+          <div className="bg-gray-100 p-3 rounded-lg mb-4 text-sm">
             Demo code: <strong>123456</strong>
-          </p>
+          </div>
 
           <button
-            onClick={() => navigate("/")}
-            className="w-full bg-blue-500 text-white py-2 rounded"
+            onClick={() => navigate("/dashboard")}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
           >
             Continue
           </button>
@@ -103,50 +95,44 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-blue-500 p-4">
-      <div className="bg-white p-8 rounded-lg w-full max-w-md">
-        
-        {/* Logo */}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-500 p-4">
+      <div className="bg-white shadow-xl rounded-2xl w-full max-w-md p-8">
+        {/* Header */}
         <div className="text-center mb-6">
-          <Cloud className="mx-auto text-blue-500 mb-2" size={40} />
-          <h1 className="text-xl font-bold">AirQuality DSM</h1>
+          <div className="bg-blue-100 w-14 h-14 flex items-center justify-center rounded-xl mx-auto mb-3">
+            <Cloud className="text-blue-600" size={28} />
+          </div>
+          <h1 className="text-2xl font-bold">AirQuality DSM</h1>
+          <p className="text-gray-500 text-sm">Monitor air quality easily</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex mb-4 border rounded overflow-hidden">
-          <button
-            onClick={() => setActiveTab("login")}
-            className={`flex-1 py-2 ${
-              activeTab === "login"
-                ? "bg-blue-500 text-white"
-                : "bg-gray-100"
-            }`}
-          >
-            Login
-          </button>
-          <button
-            onClick={() => setActiveTab("register")}
-            className={`flex-1 py-2 ${
-              activeTab === "register"
-                ? "bg-blue-500 text-white"
-                : "bg-gray-100"
-            }`}
-          >
-            Register
-          </button>
+        <div className="flex bg-gray-100 rounded-lg p-1 mb-5">
+          {['login','register'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
+                activeTab === tab
+                  ? "bg-white shadow text-blue-600"
+                  : "text-gray-500"
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
         </div>
 
-        {/* Error */}
         {error && (
-          <div className="bg-red-100 text-red-600 p-2 rounded mb-3 text-sm">
+          <div className="bg-red-100 text-red-600 text-sm p-2 rounded mb-4">
             {error}
           </div>
         )}
 
         {/* LOGIN */}
         {activeTab === "login" && (
-          <form onSubmit={handleLogin} className="space-y-3">
-            <div className="flex items-center border rounded px-2">
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="flex items-center border rounded-lg px-3">
               <Mail className="text-gray-400" size={16} />
               <input
                 type="email"
@@ -158,7 +144,7 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="flex items-center border rounded px-2">
+            <div className="flex items-center border rounded-lg px-3">
               <Lock className="text-gray-400" size={16} />
               <input
                 type="password"
@@ -173,13 +159,13 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-500 text-white py-2 rounded"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
             >
               {isLoading ? "Logging in..." : "Login"}
             </button>
 
-            {/* Demo */}
-            <div className="text-xs bg-gray-100 p-2 rounded">
+            <div className="text-xs bg-blue-50 p-3 rounded-lg">
+              <p className="font-semibold mb-1">Demo Accounts</p>
               <p>Admin: admin@airquality.tz</p>
               <p>Owner: owner@company.com</p>
               <p>Any email works</p>
@@ -189,61 +175,32 @@ export default function LoginPage() {
 
         {/* REGISTER */}
         {activeTab === "register" && (
-          <form onSubmit={handleRegister} className="space-y-3">
-            <div className="flex items-center border rounded px-2">
-              <User className="text-gray-400" size={16} />
-              <input
-                type="text"
-                placeholder="Full Name"
-                className="w-full p-2 outline-none"
-                value={registerName}
-                onChange={(e) => setRegisterName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="flex items-center border rounded px-2">
-              <Mail className="text-gray-400" size={16} />
-              <input
-                type="email"
-                placeholder="Email"
-                className="w-full p-2 outline-none"
-                value={registerEmail}
-                onChange={(e) => setRegisterEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="flex items-center border rounded px-2">
-              <Lock className="text-gray-400" size={16} />
-              <input
-                type="password"
-                placeholder="Password"
-                className="w-full p-2 outline-none"
-                value={registerPassword}
-                onChange={(e) => setRegisterPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="flex items-center border rounded px-2">
-              <Lock className="text-gray-400" size={16} />
-              <input
-                type="password"
-                placeholder="Confirm Password"
-                className="w-full p-2 outline-none"
-                value={registerConfirmPassword}
-                onChange={(e) =>
-                  setRegisterConfirmPassword(e.target.value)
-                }
-                required
-              />
-            </div>
+          <form onSubmit={handleRegister} className="space-y-4">
+            {[{icon:User,value:registerName,set:setRegisterName,placeholder:"Full Name"},
+              {icon:Mail,value:registerEmail,set:setRegisterEmail,placeholder:"Email"},
+              {icon:Lock,value:registerPassword,set:setRegisterPassword,placeholder:"Password",type:"password"},
+              {icon:Lock,value:registerConfirmPassword,set:setRegisterConfirmPassword,placeholder:"Confirm Password",type:"password"}
+            ].map((field, i) => {
+              const Icon = field.icon;
+              return (
+                <div key={i} className="flex items-center border rounded-lg px-3">
+                  <Icon className="text-gray-400" size={16} />
+                  <input
+                    type={field.type || "text"}
+                    placeholder={field.placeholder}
+                    className="w-full p-2 outline-none"
+                    value={field.value}
+                    onChange={(e) => field.set(e.target.value)}
+                    required
+                  />
+                </div>
+              );
+            })}
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-500 text-white py-2 rounded"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
             >
               {isLoading ? "Creating..." : "Create Account"}
             </button>

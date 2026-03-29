@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Menu,
   User,
@@ -10,6 +10,7 @@ import {
   Shield,
   BookOpen,
   Cloud,
+  ChevronDown,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -23,7 +24,20 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  const dropdownRef = useRef();
+
   const currentPath = location.pathname;
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const publicLinks = [
     { path: "/", label: "Home", icon: Home },
@@ -32,8 +46,8 @@ export default function Header() {
 
   const registeredLinks = [
     ...publicLinks,
-    { path: "/dashboard", label: "Data Dashboard", icon: Database },
-    { path: "/download", label: "Download Center", icon: Cloud },
+    { path: "/dashboard", label: "Dashboard", icon: Database },
+    { path: "/download", label: "Download", icon: Cloud },
   ];
 
   const privateOwnerLinks = [
@@ -42,10 +56,11 @@ export default function Header() {
   ];
 
   const adminLinks = [
-    ...publicLinks,
+    { path: "/", label: "Home", icon: Home },
+    { path: "/map", label: "Map View", icon: Map },
     { path: "/admin", label: "Admin Panel", icon: Shield },
     { path: "/sensor-status", label: "Sensor Status", icon: Settings },
-    { path: "/dashboard", label: "Data Dashboard", icon: Database },
+    { path: "/dashboard", label: "Dashboard", icon: Database },
   ];
 
   const getLinks = () => {
@@ -57,98 +72,81 @@ export default function Header() {
 
   const links = getLinks();
 
-  const NavLinks = ({ mobile }) => (
-    <>
-      {links.map((link) => {
-        const Icon = link.icon;
-        return (
-          <button
-            key={link.path}
-            onClick={() => {
-              navigate(link.path);
-              setMobileOpen(false);
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-              currentPath === link.path
-                ? "bg-blue-500 text-white"
-                : "text-gray-700 hover:bg-gray-100"
-            } ${mobile ? "w-full text-left" : ""}`}
-          >
-            <Icon className="w-4 h-4" />
-            {link.label}
-          </button>
-        );
-      })}
-
-      {!user && (
-        <button
-          onClick={() => navigate("/login")}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
-        >
-          <User className="w-4 h-4" />
-          Login
-        </button>
-      )}
-
-      <button
-        onClick={() => navigate("/api-docs")}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-          currentPath === "/api-docs"
-            ? "bg-blue-500 text-white"
-            : "text-gray-700 hover:bg-gray-100"
-        }`}
-      >
-        <BookOpen className="w-4 h-4" />
-        API Docs
-      </button>
-    </>
-  );
-
   return (
-    <header className="bg-white shadow border-b sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 flex justify-between items-center h-16">
-        
+    <header className="bg-white/80 backdrop-blur border-b sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+
         {/* Logo */}
         <div
           onClick={() => navigate("/")}
-          className="flex items-center gap-3 cursor-pointer"
+          className="flex items-center gap-3 cursor-pointer group"
         >
-          <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition">
             <Cloud className="text-white w-5 h-5" />
           </div>
           <div className="hidden sm:block">
-            <h1 className="font-bold text-lg">AirQuality DSM</h1>
-            <p className="text-xs text-gray-500">Air Monitoring</p>
+            <h1 className="font-semibold text-lg">AirQuality DSM</h1>
+            <p className="text-xs text-gray-500">Dar es Salaam</p>
           </div>
         </div>
 
-        {/* Desktop */}
-        <div className="hidden lg:flex gap-2">
-          <NavLinks />
-        </div>
+        {/* Desktop Nav */}
+        <nav className="hidden lg:flex items-center gap-2">
+          {links.map((link) => {
+            const Icon = link.icon;
+            const isActive = currentPath === link.path;
 
-        {/* Right side */}
-        <div className="flex items-center gap-2">
-          
-          {/* User dropdown */}
-          {user && (
-            <div className="relative">
+            return (
+              <button
+                key={link.path}
+                onClick={() => navigate(link.path)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition relative ${
+                  isActive
+                    ? "text-blue-600"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {link.label}
+
+                {isActive && (
+                  <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-blue-600 rounded-full" />
+                )}
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() => navigate("/api-docs")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
+              currentPath === "/api-docs"
+                ? "text-blue-600"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <BookOpen className="w-4 h-4" /> API Docs
+          </button>
+        </nav>
+
+        {/* Right Side */}
+        <div className="flex items-center gap-3">
+          {user ? (
+            <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition"
               >
-                <User className="w-4 h-4" />
-                <span className="hidden sm:inline">{user.name}</span>
+                <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-xl flex items-center justify-center font-semibold">
+                  {user.name?.charAt(0)}
+                </div>
+                <ChevronDown className="w-4 h-4 text-gray-500" />
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white border rounded-lg shadow">
-                  <div className="p-3 border-b">
-                    <p className="font-medium">{user.name}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
-                    <p className="text-xs text-blue-600 capitalize">
-                      {user.role.replace("_", " ")}
-                    </p>
+                <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-xl border py-2 animate-in fade-in zoom-in-95">
+                  <div className="px-4 py-3 border-b">
+                    <p className="font-semibold">{user.name}</p>
+                    <p className="text-sm text-gray-500">{user.email}</p>
                   </div>
 
                   <button
@@ -156,9 +154,9 @@ export default function Header() {
                       navigate("/profile");
                       setDropdownOpen(false);
                     }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
                   >
-                    Profile
+                    <User className="w-4 h-4" /> Profile
                   </button>
 
                   <button
@@ -166,54 +164,49 @@ export default function Header() {
                       logout();
                       navigate("/");
                     }}
-                    className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50"
+                    className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
                   >
-                    Logout
+                    <LogOut className="w-4 h-4" /> Logout
                   </button>
                 </div>
               )}
             </div>
+          ) : (
+            <button
+              onClick={() => navigate("/login")}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-xl transition"
+            >
+              Sign in
+            </button>
           )}
 
-          {/* Mobile menu button */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden p-2"
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
           >
-            <Menu className="w-5 h-5" />
+            <Menu />
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile */}
       {mobileOpen && (
-        <div className="lg:hidden px-4 pb-4 flex flex-col gap-2">
-          <NavLinks mobile />
-
-          {user && (
-            <>
-              <hr />
+        <div className="lg:hidden border-t px-6 py-4 space-y-2">
+          {links.map((link) => {
+            const Icon = link.icon;
+            return (
               <button
+                key={link.path}
                 onClick={() => {
-                  navigate("/profile");
+                  navigate(link.path);
                   setMobileOpen(false);
                 }}
-                className="text-left px-4 py-2 hover:bg-gray-100"
+                className="flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-gray-100"
               >
-                Profile
+                <Icon /> {link.label}
               </button>
-
-              <button
-                onClick={() => {
-                  logout();
-                  navigate("/");
-                }}
-                className="text-left px-4 py-2 text-red-600 hover:bg-red-50"
-              >
-                Logout
-              </button>
-            </>
-          )}
+            );
+          })}
         </div>
       )}
     </header>
