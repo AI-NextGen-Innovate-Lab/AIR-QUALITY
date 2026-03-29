@@ -15,7 +15,9 @@ import UserProfile from "./app/pages/UserProfile";
 import LocationDetails from "./app/pages/LocationDetails";
 
 import Header from "./app/components/Header";
-import ProtectedRoute from "./app/routes/ProtectedRoute";
+import ProtectedRoutes from "./app/routes/ProtectedRoutes";
+import APIDocumentation from "./app/pages/APIDocumentation";
+
 
 function App() {
   return (
@@ -32,54 +34,62 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoutes>
                 <DataDashboard />
-              </ProtectedRoute>
+              </ProtectedRoutes>
             }
           />
 
           <Route
             path="/download"
             element={
-              <ProtectedRoute>
+              <ProtectedRoutes>
                 <Download />
-              </ProtectedRoute>
+              </ProtectedRoutes>
             }
           />
 
           <Route
             path="/private-sensors"
             element={
-              <ProtectedRoute roles={["private_owner", "admin"]}>
+              <ProtectedRoutes roles={["private_owner", "admin"]}>
                 <PrivateSensor />
-              </ProtectedRoute>
+              </ProtectedRoutes>
             }
           />
 
           <Route
             path="/admin"
             element={
-              <ProtectedRoute roles={["admin"]}>
+              <ProtectedRoutes roles={["admin"]}>
                 <AdminPanel />
-              </ProtectedRoute>
+              </ProtectedRoutes>
             }
           />
 
           <Route
             path="/sensor-status"
             element={
-              <ProtectedRoute roles={["admin"]}>
+              <ProtectedRoutes roles={["admin"]}>
                 <SensorStatus />
-              </ProtectedRoute>
+              </ProtectedRoutes>
+            }
+          />
+           <Route
+            path="/api-docs"
+            element={
+              <ProtectedRoutes>
+                <APIDocumentation />
+              </ProtectedRoutes>
             }
           />
 
           <Route
             path="/profile"
             element={
-              <ProtectedRoute>
+              <ProtectedRoutes>
                 <UserProfile />
-              </ProtectedRoute>
+              </ProtectedRoutes>
             }
           />
 
