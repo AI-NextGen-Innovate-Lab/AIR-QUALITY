@@ -12,6 +12,7 @@ import {
   Cloud,
   ChevronDown,
 } from "lucide-react";
+import logo from "../../assets/logo.jpg"
 
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -81,9 +82,9 @@ export default function Header() {
           onClick={() => navigate("/")}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition">
-            <Cloud className="text-white w-5 h-5" />
-          </div>
+         <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition">
+  <img src={logo} alt="Logo" className="w-8 h-8 object-cover rounded-2xl" />
+</div>
           <div className="hidden sm:block">
             <h1 className="font-semibold text-lg">AirQuality DSM</h1>
             <p className="text-xs text-gray-500">Dar es Salaam</p>
