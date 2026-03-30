@@ -1,9 +1,7 @@
-import React from 'react'
 
-const AQICard = () => {
-  return (
-    <div>AQICard</div>
-  )
+
+export default function AQICard({sensorName,location,pm25,lastUpdate}){
+    return(
+        
+    )
 }
-
-export default AQICard

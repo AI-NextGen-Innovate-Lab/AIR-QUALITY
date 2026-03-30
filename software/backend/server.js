@@ -1,56 +1,83 @@
-import express from "express"
-import { InfluxDB } from "@influxdata/influxdb-client"
-import dotenv from "dotenv"
+import express from "express";
+import { InfluxDB } from "@influxdata/influxdb-client";
+import dotenv from "dotenv";
+dotenv.config();
 
-dotenv.config()
+const app = express();
+const port = 3000;
 
-// config
-const url = process.env.DB_URL
-const token = process.env.DB_TOKEN
-const org = process.env.DB_ORG
-const bucket = process.env.DB_BUCKET
-const port = process.env.PORT || 3000
+// Increase timeout to prevent "Request timed out"
+const client = new InfluxDB({ 
+  url: process.env.DB_URL, 
+  token: process.env.DB_TOKEN,
+  timeout: 60000   // 60 seconds
+});
 
-// create client
-const client = new InfluxDB({ url, token })
-const queryApi = client.getQueryApi(org)
+const queryApi = client.getQueryApi(process.env.DB_ORG);
 
-const app = express()
+app.get("/", async (req, res) => {
+  const limit = parseInt(req.query.limit) || 100;
+  const page  = parseInt(req.query.page)  || 1;
 
-app.get("/", (req, res) => {
   const query = `
-    from(bucket: "${bucket}")
-      |> range(start: -1h)
-      |> limit(n: 10)
-  `
+    import "types"
+    import "strings"
 
-  let id = 1
-  const results = []
+    from(bucket: "${process.env.DB_BUCKET}")
+      |> range(start: -1h)
+      |> filter(fn: (r) => r["_measurement"] == "ardhi")
+
+      // Safe conversion - keep " 0:25" style strings, convert numbers to float
+      |> map(fn: (r) => {
+          v = r._value
+          return { r with 
+            _value: if exists v then
+                      if types.isType(v: v, type: "string") then
+                        if strings.containsStr(v: string(v: v), substr: ":") then
+                          v                          // keep time strings
+                        else
+                          float(v: v)                // try numeric strings
+                      else
+                        float(v: v)                  // numbers → float
+                    else
+                      v
+          }
+        })
+
+      |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+
+      // Keep only rows that have an "id" column (from your original sample)
+      |> filter(fn: (r) => exists r.id and r.id != "")
+
+      // Keep the columns you actually want
+      |> keep(columns: ["_time", "id", "measurement", "value"])
+
+      |> sort(columns: ["_time"], desc: true)
+      |> limit(n: ${limit}, offset: ${(page - 1) * limit})
+  `;
+
+  const results = [];
+  let counter = 1;
 
   queryApi.queryRows(query, {
     next(row, tableMeta) {
-      const data = tableMeta.toObject(row)
-
-      results.push({
-        id: id++,
-        measurement: data._measurement,
-        value: data._value,
-        time: data._time
-      })
+      const data = tableMeta.toObject(row);
+      data.id = counter++;                    // optional sequential id
+      results.push(data);
     },
-
     error(error) {
-      console.error("Error:", error)
-      res.status(500).json({ error: error.message })
+      console.error("Query Error:", error);
+      res.status(500).json({ error: error.message });
     },
-
     complete() {
-      res.json(results)
+      res.json({
+        data: results,
+        pagination: { limit, page, count: results.length }
+      });
     }
-  })
-})
+  });
+});
 
-// start server
-app.listen(port, () => {
+app.listen(port, () => 
   console.log(`Server running on http://localhost:${port}`)
-})
+);
