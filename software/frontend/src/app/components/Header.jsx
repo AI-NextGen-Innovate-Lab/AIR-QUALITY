@@ -62,6 +62,7 @@ export default function Header() {
     { path: "/admin", label: "Admin Panel", icon: Shield },
     { path: "/sensor-status", label: "Sensor Status", icon: Settings },
     { path: "/dashboard", label: "Dashboard", icon: Database },
+    { path: "/download", label: "Download", icon: Cloud },
   ];
 
   const getLinks = () => {

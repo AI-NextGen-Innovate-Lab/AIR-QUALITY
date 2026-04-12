@@ -1,83 +1,105 @@
 import express from "express";
+import cors from "cors";
 import { InfluxDB } from "@influxdata/influxdb-client";
 import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
+app.use(cors());
 const port = 3000;
 
-// Increase timeout to prevent "Request timed out"
-const client = new InfluxDB({ 
-  url: process.env.DB_URL, 
+const client = new InfluxDB({
+  url: process.env.DB_URL,
   token: process.env.DB_TOKEN,
-  timeout: 60000   // 60 seconds
+  timeout: 160000,
 });
 
 const queryApi = client.getQueryApi(process.env.DB_ORG);
 
-app.get("/", async (req, res) => {
-  const limit = parseInt(req.query.limit) || 100;
-  const page  = parseInt(req.query.page)  || 1;
+function escapeFluxString(s) {
+  return String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
 
-  const query = `
-    import "types"
-    import "strings"
+function buildReadingsQuery(query) {
+  const limit = parseInt(query.limit, 10) || 50;
+  const page = parseInt(query.page, 10) || 1;
+  const hours = parseInt(query.hours, 10) || 24;
+  const sensorId = query.sensorId || query.sensor || "";
 
+  const safeLimit = Math.min(Math.max(limit, 1), 5000);
+  const safePage = Math.max(page, 1);
+  const safeHours = Math.min(Math.max(hours, 1), 24 * 30);
+  const offset = (safePage - 1) * safeLimit;
+
+  const topicFilter = sensorId
+    ? `\n      |> filter(fn: (r) => r.id == "${escapeFluxString(sensorId)}")`
+    : "";
+
+  const flux = `
     from(bucket: "${process.env.DB_BUCKET}")
-      |> range(start: -1h)
-      |> filter(fn: (r) => r["_measurement"] == "ardhi")
-
-      // Safe conversion - keep " 0:25" style strings, convert numbers to float
-      |> map(fn: (r) => {
-          v = r._value
-          return { r with 
-            _value: if exists v then
-                      if types.isType(v: v, type: "string") then
-                        if strings.containsStr(v: string(v: v), substr: ":") then
-                          v                          // keep time strings
-                        else
-                          float(v: v)                // try numeric strings
-                      else
-                        float(v: v)                  // numbers → float
-                    else
-                      v
-          }
-        })
-
-      |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
-
-      // Keep only rows that have an "id" column (from your original sample)
-      |> filter(fn: (r) => exists r.id and r.id != "")
-
-      // Keep the columns you actually want
-      |> keep(columns: ["_time", "id", "measurement", "value"])
-
-      |> sort(columns: ["_time"], desc: true)
-      |> limit(n: ${limit}, offset: ${(page - 1) * limit})
+      |> range(start: -${safeHours}h)
+      |> map(fn: (r) => ({
+          id: r.topic,
+          measurement: r._measurement,
+          value: r.value,
+          time: r._time
+      }))
+      |> filter(fn: (r) => exists r.id and r.id != "")${topicFilter}
+      |> sort(columns: ["time"], desc: true)
+      |> limit(n: ${safeLimit}, offset: ${offset})
   `;
 
-  const results = [];
-  let counter = 1;
+  return {
+    flux,
+    pagination: { limit: safeLimit, page: safePage, hours: safeHours },
+  };
+}
 
-  queryApi.queryRows(query, {
+function runReadingsFlux(res, flux, pagination) {
+  const results = [];
+
+  queryApi.queryRows(flux, {
     next(row, tableMeta) {
-      const data = tableMeta.toObject(row);
-      data.id = counter++;                    // optional sequential id
-      results.push(data);
+      results.push(tableMeta.toObject(row));
     },
     error(error) {
       console.error("Query Error:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({
+        error: error.message,
+        suggestion: "Try reducing the time range or hours parameter",
+      });
     },
     complete() {
       res.json({
         data: results,
-        pagination: { limit, page, count: results.length }
+        pagination: {
+          limit: pagination.limit,
+          page: pagination.page,
+          hours: pagination.hours,
+          count: results.length,
+        },
       });
-    }
+    },
+  });
+}
+
+function readingsHandler(req, res) {
+  const { flux, pagination } = buildReadingsQuery(req.query);
+  runReadingsFlux(res, flux, pagination);
+}
+
+app.get("/api/readings", readingsHandler);
+
+app.get("/", readingsHandler);
+
+app.get("/api/health", (_req, res) => {
+  res.json({
+    ok: true,
+    service: "air-quality-api",
+    time: new Date().toISOString(),
   });
 });
 
-app.listen(port, () => 
+app.listen(port, () =>
   console.log(`Server running on http://localhost:${port}`)
 );
