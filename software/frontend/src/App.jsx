@@ -14,22 +14,26 @@ import SensorStatus from "./app/pages/SensorStatus";
 import UserProfile from "./app/pages/UserProfile";
 import LocationDetails from "./app/pages/LocationDetails";
 
-import Header from "./app/components/Header";
+
 import ProtectedRoutes from "./app/routes/ProtectedRoutes";
 import APIDocumentation from "./app/pages/APIDocumentation";
+import MainLayout from "./app/components/MainLayout";
+
 
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Header />
+       
 
         <Routes>
+         <Route element={<MainLayout/>}>
           <Route path="/" element={<HomePage />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/api-docs" element={<APIDocumentation />} />
+        </Route>
 
 
           {/* Protected routes */}

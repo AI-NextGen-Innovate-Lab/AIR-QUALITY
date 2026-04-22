@@ -1,5 +1,6 @@
+import { Cloud, GitBranch, Mail } from 'lucide-react';
 import React from 'react';
-import { Cloud, Github, Twitter, Mail } from 'lucide-react';
+
 
 export function Footer() {
   return (
@@ -23,10 +24,10 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2 text-sm text-gray-600">
-              <li><a href="#" className="hover:text-blue-600">About Us</a></li>
-              <li><a href="#" className="hover:text-blue-600">How It Works</a></li>
+              <li><a href="#" className="hover:text-blue-600">Home</a></li>
+              <li><a href="#" className="hover:text-blue-600">Maps</a></li>
               <li><a href="#" className="hover:text-blue-600">Our Sensors</a></li>
-              <li><a href="#" className="hover:text-blue-600">Partners</a></li>
+           
             </ul>
           </div>
 
@@ -55,17 +56,17 @@ export function Footer() {
             </ul>
             <div className="flex gap-3 mt-4">
               <a href="#" className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-blue-100 transition-colors">
-                <Twitter className="w-4 h-4" />
+                <Mail className="w-4 h-4" />
               </a>
               <a href="#" className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-blue-100 transition-colors">
-                <Github className="w-4 h-4" />
+                <GitBranch className="w-4 h-4" />
               </a>
             </div>
           </div>
         </div>
 
-        <div className="border-t mt-8 pt-8 text-center text-sm text-gray-600">
-          <p>© 2026 AirQuality DSM. All rights reserved.</p>
+        <div className=" mt-8 pt-8 text-center text-sm text-gray-600">
+         <p>© {new Date().getFullYear()} AirQuality DSM. All rights reserved.</p>
           <div className="flex justify-center gap-6 mt-2">
             <a href="#" className="hover:text-blue-600">Privacy Policy</a>
             <a href="#" className="hover:text-blue-600">Terms of Service</a>
