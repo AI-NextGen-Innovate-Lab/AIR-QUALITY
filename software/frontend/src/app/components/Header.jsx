@@ -75,7 +75,7 @@ export default function Header() {
   const links = getLinks();
 
   return (
-    <header className="bg-white/80 backdrop-blur border-b sticky top-0 z-50">
+    <header className="bg-white/80 backdrop-blur border-b border-blue-300 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
 
         {/* Logo */}

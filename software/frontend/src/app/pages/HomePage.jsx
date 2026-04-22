@@ -138,8 +138,8 @@ export function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="p-6 bg-white rounded-xl shadow flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+          <div className="p-6 bg-white border border-blue-300 rounded-xl shadow flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg  flex items-center justify-center">
               <Activity className="w-6 h-6 text-blue-600" />
             </div>
             <div>
@@ -148,7 +148,7 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="p-6 bg-white rounded-xl shadow flex items-center gap-4">
+          <div className="p-6 bg-white border border-blue-300 rounded-xl shadow flex items-center gap-4">
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <TrendingUp className="w-6 h-6 text-green-600" />
             </div>
@@ -159,7 +159,7 @@ export function HomePage() {
           </div>
 
           <div
-            className="p-6 bg-white rounded-xl shadow flex items-center gap-4 cursor-pointer hover:shadow-lg"
+            className="p-6 bg-white border border-blue-300 rounded-xl shadow flex items-center gap-4 cursor-pointer hover:shadow-lg"
             onClick={() => navigate('/map')}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') navigate('/map');
@@ -191,13 +191,15 @@ export function HomePage() {
             connection.
           </p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1  md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sensors.map((sensor) => (
-              <AQICard
+              <AQICard 
+                className="border border-blue-300"
                 key={sensor.id}
                 sensorId={sensor.id}
                 measurements={sensor.measurements}
                 onClick={() =>
+                  className=
                   navigate(`/sensor/${encodeURIComponent(sensor.id)}`)
                 }
               />

@@ -23,11 +23,7 @@ export default function PrivateSensor() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Private sensors</h1>
-          <p className="mt-2 text-gray-600">
-            All topics currently visible through GET /api/readings are listed below. Marking a topic
-            as “private” in the product sense requires your own registry; the Influx API does not
-            distinguish public vs private.
-          </p>
+         
         </div>
 
         {error && (

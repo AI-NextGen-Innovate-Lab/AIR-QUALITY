@@ -75,10 +75,7 @@ export function MapPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Air Quality Map
           </h1>
-          <p className="text-gray-600">
-            Interactive map showing real-time air quality across Dar es Salaam.
-            Station positions are approximate (API provides topic IDs only).
-          </p>
+         
         </div>
 
         {loading && (
@@ -247,7 +244,7 @@ export function MapPage() {
                 return (
                   <div
                     key={sensor.id}
-                    className={`p-3 rounded-lg border-2 cursor-pointer ${
+                    className={`p-3 rounded-lg border border-blue-300 border-2 cursor-pointer ${
                       isSelected
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
