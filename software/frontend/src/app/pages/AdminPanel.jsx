@@ -67,10 +67,7 @@ export default function AdminPanel() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Admin panel</h1>
-          <p className="text-gray-600">
-            Live figures from GET /api/readings and GET /api/health. User and API-key management
-            requires a separate service (not in this backend).
-          </p>
+         
         </div>
 
         <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-4">
