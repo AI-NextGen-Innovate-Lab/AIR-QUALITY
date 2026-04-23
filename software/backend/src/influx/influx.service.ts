@@ -16,7 +16,7 @@ export class InfluxService {
     if (rawUrl) {
       try {
         const parsed = new URL(rawUrl);
-        // Influx client expects server base URL, not "/orgs/<id>" path URLs.
+        
         url = parsed.origin;
       } catch {
         url = rawUrl;
@@ -81,7 +81,7 @@ export class InfluxService {
         |> range(start: -${safeHours}h)
         |> map(fn: (r) => ({
             id: r.topic,
-            measurement: if exists r._field then r._field else r._measurement,
+            measurement: if exists r.name then r.name else r._measurement,
             value: if exists r.value then r.value else r._value,
             time: r._time
         }))

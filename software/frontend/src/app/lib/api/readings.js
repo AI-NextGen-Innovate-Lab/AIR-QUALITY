@@ -1,9 +1,6 @@
 import { apiGet } from "./client.js";
 
-/**
- * GET /api/readings — { data: Row[], pagination }
- * Row: { id, measurement, value, time }
- */
+
 export function fetchReadings({
   limit = 500,
   page = 1,

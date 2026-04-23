@@ -247,9 +247,9 @@ export default function Download() {
               </div>
             </div>
 
-            <div className={panel()}>
+            <div className={`${panel()} border border-blue-300 `}>
               <h3 className="mb-4 text-lg font-semibold">Export format</h3>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3  ">
                 {[
                   { value: "csv", label: "CSV", icon: FileText, desc: "Comma-separated" },
                   { value: "excel", label: "Excel", icon: FileSpreadsheet, desc: "CSV + BOM for Excel" },
@@ -259,7 +259,7 @@ export default function Download() {
                     key={option.value}
                     type="button"
                     onClick={() => setFormat(option.value)}
-                    className={`rounded-lg border-2 p-4 text-left transition-colors ${
+                    className={`rounded-lg border-2  p-4 text-left transition-colors ${
                       format === option.value
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-gray-300"
@@ -275,7 +275,7 @@ export default function Download() {
           </div>
 
           <div>
-            <div className={`${panel()} sticky top-24`}>
+            <div className={`${panel()} sticky top-24 border border-blue-300`}>
               <h3 className="mb-4 text-lg font-semibold">Summary</h3>
               <div className="space-y-4 text-sm">
                 <div>
@@ -312,8 +312,8 @@ export default function Download() {
               </div>
             </div>
 
-            <div className={`${panel()} mt-6`}>
-              <h3 className="mb-3 text-lg font-semibold">Recent exports</h3>
+            <div className={`${panel()} mt-6 `}>
+              <h3 className="mb-3 text-lg font-semibold ">Recent exports</h3>
               <p className="flex items-start gap-2 text-sm text-gray-600">
                 <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
                 Exports are generated in your browser; history is not stored on the server.

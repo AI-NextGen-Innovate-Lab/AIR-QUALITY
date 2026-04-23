@@ -55,7 +55,7 @@ export default function PrivateSensor() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left">
+                  <tr className="border-b  border-blue-300 text-left">
                     <th className="py-3 pr-4">Topic</th>
                     <th className="py-3 pr-4 text-right">AQI</th>
                     <th className="py-3 pr-4">Category</th>
@@ -99,10 +99,7 @@ export default function PrivateSensor() {
           )}
         </div>
 
-        <p className="mt-6 flex items-center gap-2 text-xs text-gray-500">
-          <MapPin className="h-3 w-3" />
-          Map positions for topics are approximate until you store real coordinates server-side.
-        </p>
+      
       </div>
     </div>
   );

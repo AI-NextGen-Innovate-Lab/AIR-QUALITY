@@ -1,8 +1,3 @@
-/**
- * HTTP helpers for the Express backend (see software/backend/server.js).
- * Dev: Vite proxies /backend → http://localhost:3000
- * Prod: set VITE_API_URL (e.g. https://api.example.com) — no /backend prefix.
- */
 
 export function buildUrl(pathWithLeadingSlash, searchParams) {
   const qs =
