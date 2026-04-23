@@ -6,12 +6,10 @@ import {
   Calendar,
   CheckCircle,
 } from "lucide-react";
+
 import { fetchReadings } from "@/app/lib/api";
 import { groupReadingsBySensor } from "@/app/lib/sensorData";
-import {
-  hoursForDownloadRange,
-  rowMatchesPollutantSelection,
-} from "@/app/lib/readings/downloadFilters";
+import { hoursForDownloadRange } from "@/app/lib/readings/downloadFilters";
 import { downloadTextFile, toCsv } from "@/app/lib/readings/csvExport";
 
 function panel() {
@@ -26,23 +24,18 @@ export default function Download() {
   const [selectedSensors, setSelectedSensors] = useState([]);
   const [timeRange, setTimeRange] = useState("week");
   const [format, setFormat] = useState("csv");
-  const [pollutants, setPollutants] = useState({
-    pm25: true,
-    pm10: true,
-    co2: false,
-    no2: false,
-    o3: false,
-    co: false,
-    so2: false,
-  });
+
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+
   const [sensors, setSensors] = useState([]);
   const didInitSensors = useRef(false);
 
+  // Load sensors
   useEffect(() => {
     let cancelled = false;
+
     fetchReadings({ limit: 2000, page: 1, hours: 168 })
       .then((json) => {
         if (cancelled) return;
@@ -51,11 +44,13 @@ export default function Download() {
       .catch(() => {
         if (!cancelled) setSensors([]);
       });
+
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // Auto-select first sensor
   useEffect(() => {
     if (sensors.length && !didInitSensors.current) {
       didInitSensors.current = true;
@@ -69,10 +64,6 @@ export default function Download() {
     );
   };
 
-  const togglePollutant = (key) => {
-    setPollutants((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const estimateRows = useMemo(() => {
     const hours = hoursForDownloadRange(timeRange);
     const pointsPerSensor = Math.min(hours * 4, 4000);
@@ -82,53 +73,86 @@ export default function Download() {
   const handleDownload = async () => {
     setMessage(null);
     setError(null);
+
     if (!selectedSensors.length) {
       setError("Select at least one sensor.");
       return;
     }
-    if (!Object.values(pollutants).some(Boolean)) {
-      setError("Select at least one pollutant column.");
-      return;
-    }
+
     setBusy(true);
+
     try {
       const hours = hoursForDownloadRange(timeRange);
       const json = await fetchReadings({ limit: 5000, page: 1, hours });
+
       const setIds = new Set(selectedSensors);
+
+      // ✅ NO pollutant filtering — only sensor filtering
       const filtered = (json.data || []).filter(
-        (r) => r.id && setIds.has(r.id) && rowMatchesPollutantSelection(r, pollutants)
+        (r) => r.id && setIds.has(r.id)
       );
+
       if (!filtered.length) {
-        setError("No rows matched your filters for this window (check pollutant names in Influx).");
+        setError("No data found for selected sensors/time range.");
         setBusy(false);
         return;
       }
-      const columns = ["time", "id", "measurement", "value"];
-      const rows = filtered.map((r) => ({
-        time: r.time,
-        id: r.id,
-        measurement: r.measurement,
-        value: r.value,
-      }));
+
+      // ✅ Pivot data dynamically
+      const grouped = {};
+
+      filtered.forEach((r) => {
+        const key = `${r.time}_${r.id}`;
+
+        if (!grouped[key]) {
+          grouped[key] = {
+            time: r.time,
+            id: r.id,
+          };
+        }
+
+        // measurement becomes column name dynamically
+        grouped[key][r.measurement] = r.value;
+      });
+
+      const rows = Object.values(grouped);
+
+      // ✅ Dynamic columns
+      const columns = Array.from(
+        new Set(rows.flatMap((r) => Object.keys(r)))
+      );
+
       const csvBody = toCsv(rows, columns);
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+
+      const stamp = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "-");
 
       if (format === "pdf") {
         const note =
-          "Air quality export\n\nPDF is not generated server-side. Use CSV or Excel-style export in the app.\n\n";
-        downloadTextFile(`airquality_${stamp}.txt`, note + csvBody, "text/plain;charset=utf-8;");
-        setMessage("Downloaded a text summary plus CSV content. For PDF, print that file.");
+          "Air quality export\n\nPDF is not generated server-side. Use CSV or Excel.\n\n";
+
+        downloadTextFile(
+          `airquality_${stamp}.txt`,
+          note + csvBody,
+          "text/plain;charset=utf-8;"
+        );
+
+        setMessage("Downloaded text + CSV content (print for PDF).");
       } else {
-        const ext = format === "excel" ? "csv" : "csv";
+        const ext = "csv";
         const bom = "\uFEFF";
+
         downloadTextFile(
           `airquality_${stamp}.${ext}`,
           bom + csvBody,
           "text/csv;charset=utf-8;"
         );
+
         setMessage(
           format === "excel"
-            ? "Downloaded CSV (Excel-compatible with UTF-8 BOM)."
+            ? "Downloaded CSV (Excel-compatible)."
             : "Downloaded CSV."
         );
       }
@@ -142,16 +166,16 @@ export default function Download() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Download center</h1>
-          
-        </div>
+        <h1 className="mb-6 text-3xl font-bold text-gray-900">
+          Download center
+        </h1>
 
         {message && (
           <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-900">
             {message}
           </div>
         )}
+
         {error && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
             {error}
@@ -159,164 +183,125 @@ export default function Download() {
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* LEFT */}
           <div className="space-y-6 lg:col-span-2">
+            {/* Sensors */}
             <div className={panel()}>
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div className="mb-4 flex justify-between">
                 <h3 className="text-lg font-semibold">Select sensors</h3>
                 <div className="flex gap-2">
                   <button
-                    type="button"
                     className={btnOutline()}
                     onClick={() => setSelectedSensors(sensors.map((s) => s.id))}
                   >
                     Select all
                   </button>
-                  <button type="button" className={btnOutline()} onClick={() => setSelectedSensors([])}>
+                  <button
+                    className={btnOutline()}
+                    onClick={() => setSelectedSensors([])}
+                  >
                     Deselect all
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+
+              <div className="grid gap-3 md:grid-cols-2">
                 {sensors.map((sensor) => (
                   <label
                     key={sensor.id}
-                    className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-3 transition-colors ${
+                    className={`flex gap-3 rounded-lg border-2 p-3 ${
                       selectedSensors.includes(sensor.id)
                         ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
+                        : "border-gray-200"
                     }`}
                   >
                     <input
                       type="checkbox"
-                      className="mt-1 h-4 w-4 rounded border-gray-300"
                       checked={selectedSensors.includes(sensor.id)}
                       onChange={() => toggleSensor(sensor.id)}
                     />
                     <div>
-                      <div className="text-sm font-medium">{sensor.id}</div>
-                      <div className="text-xs text-gray-500">Influx topic</div>
+                      <div className="text-sm font-medium">
+                        {sensor.id}
+                      </div>
                     </div>
                   </label>
                 ))}
-                {sensors.length === 0 && (
-                  <p className="text-sm text-gray-600">No sensors loaded yet (check API).</p>
-                )}
               </div>
             </div>
 
+            {/* Time */}
             <div className={panel()}>
               <h3 className="mb-4 text-lg font-semibold">Time period</h3>
+
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                {[
-                  { value: "day", label: "24 hours" },
-                  { value: "week", label: "7 days" },
-                  { value: "month", label: "30 days" },
-                  { value: "year", label: "30 days (max)" },
-                ].map((option) => (
+                {["day", "week", "month", "year"].map((val) => (
                   <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setTimeRange(option.value)}
-                    className={`rounded-lg border-2 p-4 text-left transition-colors ${
-                      timeRange === option.value
+                    key={val}
+                    onClick={() => setTimeRange(val)}
+                    className={`rounded-lg border-2 p-4 ${
+                      timeRange === val
                         ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
+                        : "border-gray-200"
                     }`}
                   >
-                    <Calendar className="mb-2 h-6 w-6 text-gray-600" />
-                    <div className="text-sm font-medium">{option.label}</div>
+                    <Calendar className="mb-2 h-6 w-6" />
+                    {val}
                   </button>
                 ))}
               </div>
             </div>
 
+            {/* Format */}
             <div className={panel()}>
-              <h3 className="mb-4 text-lg font-semibold">Pollutants</h3>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                {Object.keys(pollutants).map((key) => (
-                  <label key={key} className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300"
-                      checked={pollutants[key]}
-                      onChange={() => togglePollutant(key)}
-                    />
-                    <span className="uppercase">{key}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className={`${panel()} border border-blue-300 `}>
               <h3 className="mb-4 text-lg font-semibold">Export format</h3>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3  ">
+
+              <div className="grid gap-4 md:grid-cols-3">
                 {[
-                  { value: "csv", label: "CSV", icon: FileText, desc: "Comma-separated" },
-                  { value: "excel", label: "Excel", icon: FileSpreadsheet, desc: "CSV + BOM for Excel" },
-                  { value: "pdf", label: "PDF / text", icon: FileText, desc: "Plain text + data" },
-                ].map((option) => (
+                  { value: "csv", icon: FileText },
+                  { value: "excel", icon: FileSpreadsheet },
+                  { value: "pdf", icon: FileText },
+                ].map((opt) => (
                   <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setFormat(option.value)}
-                    className={`rounded-lg border-2  p-4 text-left transition-colors ${
-                      format === option.value
+                    key={opt.value}
+                    onClick={() => setFormat(opt.value)}
+                    className={`rounded-lg border-2 p-4 ${
+                      format === opt.value
                         ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
+                        : "border-gray-200"
                     }`}
                   >
-                    <option.icon className="mb-2 h-8 w-8 text-gray-600" />
-                    <div className="font-medium">{option.label}</div>
-                    <div className="text-xs text-gray-500">{option.desc}</div>
+                    <opt.icon className="mb-2 h-6 w-6" />
+                    {opt.value}
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
+          {/* RIGHT */}
           <div>
-            <div className={`${panel()} sticky top-24 border border-blue-300`}>
+            <div className={`${panel()} sticky top-24`}>
               <h3 className="mb-4 text-lg font-semibold">Summary</h3>
-              <div className="space-y-4 text-sm">
-                <div>
-                  <div className="text-gray-600">Sensors</div>
-                  <div className="text-2xl font-bold text-gray-900">{selectedSensors.length}</div>
-                </div>
-                <div>
-                  <div className="text-gray-600">Server window</div>
-                  <div className="text-lg font-semibold capitalize">{timeRange}</div>
-                </div>
-                <div>
-                  <div className="text-gray-600">Pollutant filters on</div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {Object.values(pollutants).filter(Boolean).length}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-600">Format</div>
-                  <div className="text-lg font-semibold uppercase">{format}</div>
-                </div>
-                <div className="border-t pt-4">
-                  <div className="text-gray-600">Rough max rows</div>
-                  <div className="text-lg font-semibold">{estimateRows}</div>
-                </div>
-                <button
-                  type="button"
-                  disabled={busy || selectedSensors.length === 0}
-                  onClick={handleDownload}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-                >
-                  <DownloadIcon className="h-4 w-4" />
-                  {busy ? "Working…" : "Download"}
-                </button>
-              </div>
+
+              <p>Sensors: {selectedSensors.length}</p>
+              <p>Range: {timeRange}</p>
+              <p>Rows (est): {estimateRows}</p>
+
+              <button
+                disabled={busy || !selectedSensors.length}
+                onClick={handleDownload}
+                className="mt-4 w-full rounded-lg bg-blue-600 p-3 text-white"
+              >
+                <DownloadIcon className="inline mr-2 h-4 w-4" />
+                {busy ? "Working…" : "Download"}
+              </button>
             </div>
 
-            <div className={`${panel()} mt-6 `}>
-              <h3 className="mb-3 text-lg font-semibold ">Recent exports</h3>
-              <p className="flex items-start gap-2 text-sm text-gray-600">
-                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
-                Exports are generated in your browser; history is not stored on the server.
+            <div className={`${panel()} mt-6`}>
+              <p className="text-sm text-gray-600 flex gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                Exports generated locally.
               </p>
             </div>
           </div>
