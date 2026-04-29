@@ -66,7 +66,6 @@ export class AuthService {
           email: true,
           name: true,
           role: true,
-          createdAt: true,
         },
       });
 
@@ -87,7 +86,25 @@ export class AuthService {
       if (error instanceof ConflictException) {
         throw error;
       }
-      throw new BadRequestException('Registration failed');
+      
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      
+      // Log the actual error for debugging
+      console.error('Registration error details:', error);
+      
+      // If it's a Prisma error, provide more context
+      if (error && typeof error === 'object' && 'code' in error) {
+        const prismaError = error as any;
+        if (prismaError.code === 'P2002') {
+          throw new ConflictException(`Email already exists`);
+        }
+      }
+      
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Registration failed'
+      );
     }
   }
 
