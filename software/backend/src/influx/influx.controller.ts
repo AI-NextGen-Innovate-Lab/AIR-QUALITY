@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { InfluxService } from './influx.service.js';
 
-@Controller('api')
+@Controller()
 export class InfluxController {
   constructor(private readonly influxService: InfluxService) {}
 
