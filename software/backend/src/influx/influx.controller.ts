@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { InfluxService } from './influx.service';
+import { InfluxService } from './influx.service.js';
 
 @Controller('api')
 export class InfluxController {

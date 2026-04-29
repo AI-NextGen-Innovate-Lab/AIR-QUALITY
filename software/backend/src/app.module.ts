@@ -1,13 +1,32 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { InfluxModule } from './influx/influx.module';
+import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { PrismaModule } from "./prisma/prisma.module.js";
+import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+
+
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
+  imports:[
+    ConfigModule.forRoot({isGlobal:true}),
+    ThrottlerModule.forRoot({
+      throttlers:[
+       {
+        ttl:60,
+        limit:10,
+        
+       },
+      ],
     }),
-    InfluxModule,
+    PrismaModule
+
+  ],
+  providers:[
+    {
+      provide:APP_GUARD,
+      useClass:ThrottlerGuard,
+    },
   ],
 })
-export class AppModule {}
+
+export class AppModule{}
