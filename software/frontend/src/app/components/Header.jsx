@@ -45,15 +45,17 @@ export default function Header() {
     { path: "/map", label: "Map View", icon: Map },
   ];
 
-  const registeredLinks = [
+  const userLinks = [
     ...publicLinks,
-    { path: "/dashboard", label: "Dashboard", icon: Database },
+    { path: "/user-dashboard", label: "Dashboard", icon: Database },
     { path: "/download", label: "Download", icon: Cloud },
   ];
 
-  const privateOwnerLinks = [
-    ...registeredLinks,
+  const ownerLinks = [
+    ...publicLinks,
     { path: "/private-sensors", label: "My Sensors", icon: Settings },
+    { path: "/user-dashboard", label: "Dashboard", icon: Database },
+    { path: "/download", label: "Download", icon: Cloud },
   ];
 
   const adminLinks = [
@@ -61,15 +63,19 @@ export default function Header() {
     { path: "/map", label: "Map View", icon: Map },
     { path: "/admin", label: "Admin Panel", icon: Shield },
     { path: "/sensor-status", label: "Sensor Status", icon: Settings },
-    { path: "/dashboard", label: "Dashboard", icon: Database },
+    { path: "/user-dashboard", label: "Dashboard", icon: Database },
     { path: "/download", label: "Download", icon: Cloud },
   ];
 
   const getLinks = () => {
     if (!user) return publicLinks;
-    if (user.role === "admin") return adminLinks;
-    if (user.role === "private_owner") return privateOwnerLinks;
-    return registeredLinks;
+    
+    // Normalize role to lowercase for comparison
+    const normalizedRole = user.role?.toLowerCase() || "user";
+    
+    if (normalizedRole === "admin") return adminLinks;
+    if (normalizedRole === "owner") return ownerLinks;
+    return userLinks; // Default for "user" role
   };
 
   const links = getLinks();

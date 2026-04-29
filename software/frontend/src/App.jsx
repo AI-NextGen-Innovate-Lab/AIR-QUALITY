@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import { AuthProvider } from "./app/context/AuthContext";
 
@@ -16,28 +16,37 @@ import LocationDetails from "./app/pages/LocationDetails";
 
 import Header from "./app/components/Header";
 import ProtectedRoutes from "./app/routes/ProtectedRoutes";
+import RoleRedirect from "./app/routes/RoleRedirect";
 import APIDocumentation from "./app/pages/APIDocumentation";
-
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Header />
-        
 
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/api-docs" element={<APIDocumentation />} />
 
-
-          {/* Protected routes */}
+          {/* Role-based Dashboard Redirect - Default for authenticated users */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoutes>
+                <RoleRedirect />
+              </ProtectedRoutes>
+            }
+          />
+
+          {/* USER Dashboard Routes */}
+          <Route
+            path="/user-dashboard"
+            element={
+              <ProtectedRoutes roles={["user"]}>
                 <DataDashboard />
               </ProtectedRoutes>
             }
@@ -46,21 +55,13 @@ function App() {
           <Route
             path="/download"
             element={
-              <ProtectedRoutes>
+              <ProtectedRoutes roles={["user"]}>
                 <Download />
               </ProtectedRoutes>
             }
           />
 
-          <Route
-            path="/private-sensors"
-            element={
-              <ProtectedRoutes roles={["private_owner", "admin"]}>
-                <PrivateSensor />
-              </ProtectedRoutes>
-            }
-          />
-
+          {/* ADMIN Routes */}
           <Route
             path="/admin"
             element={
@@ -78,8 +79,18 @@ function App() {
               </ProtectedRoutes>
             }
           />
-          
 
+          {/* OWNER Routes */}
+          <Route
+            path="/private-sensors"
+            element={
+              <ProtectedRoutes roles={["owner", "admin"]}>
+                <PrivateSensor />
+              </ProtectedRoutes>
+            }
+          />
+
+          {/* Shared Protected Routes */}
           <Route
             path="/profile"
             element={
@@ -89,8 +100,11 @@ function App() {
             }
           />
 
-          {/* Dynamic route */}
+          {/* Dynamic route for sensor details */}
           <Route path="/sensor/:sensorId" element={<LocationDetails />} />
+
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
