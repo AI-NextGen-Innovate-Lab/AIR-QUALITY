@@ -1,103 +1,142 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/backend/api";
+
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(null);
+  const [error, setError] = useState(null);
 
-  //  Load user from localStorage on refresh
+  // Load user and token from localStorage on mount/refresh
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    const savedToken = localStorage.getItem("token");
+    
+    if (savedUser && savedToken) {
+      try {
+        setUser(JSON.parse(savedUser));
+        setToken(savedToken);
+      } catch (err) {
+        console.error("Failed to parse saved user:", err);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
     }
     setLoading(false);
   }, []);
 
-  //  Save user to localStorage
-  const saveUser = (userData) => {
+  // Save user and token to localStorage
+  const saveSession = (userData, authToken) => {
     setUser(userData);
+    setToken(authToken);
     localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", authToken);
   };
 
   const login = async (email, password) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    setError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (email === "admin@airquality.tz") {
-      saveUser({
-        id: "1",
-        name: "Admin User",
-        email,
-        role: "admin",
-        verified: true,
-      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Login failed");
+      }
+
+      const data = await response.json();
+      const { user: userData, access_token } = data;
+
+      saveSession(userData, access_token);
       return true;
-    } else if (email === "owner@company.com") {
-      saveUser({
-        id: "2",
-        name: "Sensor Owner",
-        email,
-        role: "private_owner",
-        verified: true,
-      });
-      return true;
-    } else if (email.includes("@")) {
-      saveUser({
-        id: "3",
-        name: "Data User",
-        email,
-        role: "registered",
-        verified: true,
-      });
-      return true;
+    } catch (err) {
+      const errorMessage = err.message || "Login error";
+      setError(errorMessage);
+      console.error("Login error:", err);
+      return false;
     }
-
-    return false;
   };
 
   const logout = () => {
     setUser(null);
+    setToken(null);
+    setError(null);
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
   };
 
   const register = async (name, email, password) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    setError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-    const newUser = {
-      id: Date.now().toString(),
-      name,
-      email,
-      role: "registered",
-      verified: false,
-    };
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Registration failed");
+      }
 
-    saveUser(newUser);
-    return true;
-  };
+      const data = await response.json();
+      const { user: userData, access_token } = data;
 
-  const verifyEmail = async (code) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    if (user && code === "123456") {
-      const updatedUser = { ...user, verified: true };
-      saveUser(updatedUser);
+      saveSession(userData, access_token);
       return true;
+    } catch (err) {
+      const errorMessage = err.message || "Registration error";
+      setError(errorMessage);
+      console.error("Registration error:", err);
+      return false;
     }
-
-    return false;
   };
 
-  const switchRole = (role) => {
-    if (user) {
-      const updatedUser = { ...user, role };
-      saveUser(updatedUser);
+  const validateToken = async (authToken) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/validate-token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: authToken }),
+      });
+
+      if (!response.ok) {
+        logout();
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Token validation error:", err);
+      logout();
+      return false;
     }
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, logout, register, verifyEmail, switchRole }}
+      value={{
+        user,
+        loading,
+        token,
+        error,
+        login,
+        logout,
+        register,
+        validateToken,
+      }}
     >
       {!loading && children}
     </AuthContext.Provider>

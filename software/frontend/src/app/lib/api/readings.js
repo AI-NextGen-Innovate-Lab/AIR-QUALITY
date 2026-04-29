@@ -7,7 +7,7 @@ export function fetchReadings({
   sensorId,
   hours = 24,
 } = {}) {
-  return apiGet("/api/readings", { limit, page, sensorId, hours });
+  return apiGet("/readings", { limit, page, sensorId, hours });
 }
 
 export function fetchSensorReadings(sensorId, { limit = 2000, hours = 168 } = {}) {
