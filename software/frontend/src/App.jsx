@@ -24,6 +24,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Header />
+        
 
         <Routes>
           <Route path="/" element={<HomePage />} />
