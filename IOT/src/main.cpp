@@ -148,6 +148,26 @@ void printDivider(char c = '=', int len = 52)
     Serial.println();
 }
 
+void printStartupInfo()
+{
+    printDivider('=', 52);
+    Serial.println("Air quality node starting");
+    Serial.println("MQ-135 warm-up: 60 seconds");
+    Serial.println();
+    Serial.println("MQ-135 calibration settings");
+    Serial.printf("  RZERO baseline     : %.2f kOhm\n", MQ135_RZERO);
+    Serial.printf("  CO2e clean-air ppm : %.1f ppm\n", MQ135_CO2_EQ_BASELINE_PPM);
+    Serial.printf("  Clean-air Rs/Ro    : %.2f\n", MQ135_CO2_EQ_CLEAN_RATIO);
+    Serial.println("  Tip: if indoor CO2e stays too low, lower RZERO only after");
+    Serial.println("       recalibrating in fresh outdoor air.");
+    printDivider('=', 52);
+}
+
+void printSectionTitle(const char *title)
+{
+    Serial.println(title);
+}
+
 void printBME280()
 {
     float temp = bme.readTemperature();
@@ -155,6 +175,7 @@ void printBME280()
     float pressure = bme.readPressure() / 100.0f;
     float altitude = bme.readAltitude(SEA_LEVEL_HPA);
 
+    printSectionTitle("[BME280]");
     Serial.printf("  Temperature : %.2f C\n", temp);
     Serial.printf("  Humidity    : %.2f %%\n", humidity);
     Serial.printf("  Pressure    : %.2f hPa\n", pressure);
@@ -170,6 +191,7 @@ void printHM3301()
     uint16_t pm25_atm = (hm3301Buf[10] << 8) | hm3301Buf[11];
     uint16_t pm10_atm = (hm3301Buf[12] << 8) | hm3301Buf[13];
 
+    printSectionTitle("[HM3301]");
     Serial.printf("  PM1.0 (atm) : %u ug/m3\n", pm1_atm);
     Serial.printf("  PM2.5 (atm) : %u ug/m3\n", pm25_atm);
     Serial.printf("  PM10  (atm) : %u ug/m3\n", pm10_atm);
@@ -187,6 +209,11 @@ void printMQ135()
     float voc_ppm = getPPM(rs, CURVE_VOC);
     float alcohol_ppm = getPPM(rs, CURVE_ALCOHOL);
 
+    printSectionTitle("[MQ-135]");
+    Serial.printf("  Raw ADC     : %d / 4095\n", raw);
+    Serial.printf("  Voltage     : %.3f V\n", voltage);
+    Serial.printf("  Rs          : %.2f kOhm\n", rs);
+    Serial.printf("  Rs/Ro       : %.3f\n", ratio);
     Serial.printf("  CO2 eq      : %.1f ppm\n", co2_eq_ppm);
     Serial.printf("  NOx         : %.3f ppm\n", nox_ppm);
     Serial.printf("  VOC         : %.3f ppm\n", voc_ppm);
@@ -203,10 +230,7 @@ void setup()
         delay(10);
     delay(500);
 
-    printDivider('=', 52);
-    Serial.println("Air quality node starting");
-    Serial.println("MQ-135 warm-up: 60 seconds");
-    printDivider('=', 52);
+    printStartupInfo();
 
     Wire.begin(SDA_PIN, SCL_PIN);
 
@@ -232,10 +256,6 @@ void loop()
     static uint32_t count = 0;
     count++;
 
-    printDivider('=', 52);
-    Serial.printf("Reading #%lu   uptime: %lu s\n", count, millis() / 1000);
-    printDivider('=', 52);
-
     printBME280();
     printDivider('-', 52);
 
@@ -248,6 +268,5 @@ void loop()
 
     printMQ135();
 
-    printDivider('=', 52);
     delay(60000);
 }
