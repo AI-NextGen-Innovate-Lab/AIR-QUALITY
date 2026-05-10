@@ -12,31 +12,6 @@ export class AuthService {
     private jwt: JwtService,
   ) {}
 
-  private async logAuthActivity(
-    userId: number,
-    action: string,
-    success: boolean,
-    metadata: any = {},
-  ) {
-    try {
-      const prisma = this.prisma as any;
-      await prisma.activityLog.create({
-        data: {
-          action: `AUTH_${action}`,
-          description: `${action} attempt ${success ? 'succeeded' : 'failed'}`,
-          userId,
-          metadata: {
-            success,
-            timestamp: new Date().toISOString(),
-            ...metadata,
-          },
-        },
-      });
-    } catch (error) {
-      console.error('Failed to log auth activity:', error);
-    }
-  }
-
   async register(createAuthDto: CreateAuthDto) {
     try {
       const { email, password, name } = createAuthDto;
@@ -68,8 +43,6 @@ export class AuthService {
           role: true,
         },
       });
-
-      await this.logAuthActivity(user.id, 'REGISTER', true);
 
       // Generate tokens
       const access_token = this.jwt.sign({
@@ -116,7 +89,6 @@ export class AuthService {
       });
 
       if (!user) {
-        await this.logAuthActivity(0, 'LOGIN', false, { email });
         throw new UnauthorizedException('Invalid credentials');
       }
 
@@ -124,11 +96,8 @@ export class AuthService {
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
-        await this.logAuthActivity(user.id, 'LOGIN', false, { email });
         throw new UnauthorizedException('Invalid credentials');
       }
-
-      await this.logAuthActivity(user.id, 'LOGIN', true, { email });
 
       // Generate tokens
       const access_token = this.jwt.sign({
