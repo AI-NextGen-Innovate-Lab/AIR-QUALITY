@@ -6,6 +6,7 @@ import {
   averageAqiFromSensors,
   totalReadingCount,
 } from "@/app/lib/admin/adminMetrics";
+import UserManagement from "./UserManagement";
 
 function panel() {
   return "rounded-xl border border-gray-100 bg-white p-6 shadow-sm";
@@ -168,19 +169,8 @@ export default function AdminPanel() {
 
         {tab === "users" && (
           <div className={panel()}>
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <h3 className="text-lg font-semibold">User accounts</h3>
-              <button
-                type="button"
-                disabled
-                className="cursor-not-allowed rounded-lg bg-gray-200 px-3 py-1.5 text-sm text-gray-500"
-              >
-                Add user (no API)
-              </button>
-            </div>
-            <div className="py-12 text-center text-gray-500">
-              User listing is not provided by the air-quality API.
-            </div>
+            <h3 className="mb-6 text-lg font-semibold">User Management</h3>
+            <UserManagement />
           </div>
         )}
 

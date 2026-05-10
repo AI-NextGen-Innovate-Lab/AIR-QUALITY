@@ -88,6 +88,30 @@ export async function apiPut(pathWithLeadingSlash, body) {
   return res.json();
 }
 
+export async function apiPatch(pathWithLeadingSlash, body) {
+  const url = buildUrl(pathWithLeadingSlash);
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data.error) message = data.error;
+      if (data.message) message = data.message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
 export async function apiDelete(pathWithLeadingSlash) {
   const url = buildUrl(pathWithLeadingSlash);
   const res = await fetch(url, {
