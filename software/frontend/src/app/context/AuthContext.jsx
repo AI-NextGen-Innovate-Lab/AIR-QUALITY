@@ -86,7 +86,26 @@ export function AuthProvider({ children }) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Registration failed");
+        
+        // Extract detailed error message from backend validation
+        let errorMessage = "Registration failed";
+        
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        
+        // If there's a detailed errors array, append it
+        if (errorData.errors && Array.isArray(errorData.errors)) {
+          const detailedErrors = errorData.errors
+            .map((err) => `${err.field}: ${Object.values(err.errors || {}).join(", ")}`)
+            .join("; ");
+          if (detailedErrors) {
+            errorMessage = detailedErrors;
+          }
+        }
+        
+        console.error("Backend error details:", errorData);
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();

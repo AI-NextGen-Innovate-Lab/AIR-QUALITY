@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { AuthModule } from "./auth/auth.module.js";
+import { UsersModule } from "./users/users.module.js";
 import { InfluxModule } from "./influx/influx.module.js";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -20,6 +21,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     }),
     PrismaModule,
     AuthModule,
+    UsersModule,
     InfluxModule,
   ],
   providers:[

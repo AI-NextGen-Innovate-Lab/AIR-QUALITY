@@ -6,9 +6,11 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  IsEnum,
+  IsOptional,
 } from "class-validator";
 
-export class CreateAuthDto {
+export class CreateUserDto {
   @Transform(({ value }) => value?.trim())
   @IsNotEmpty()
   @IsString()
@@ -26,18 +28,15 @@ export class CreateAuthDto {
 
   @IsNotEmpty()
   @IsString()
-  @MinLength(8, {
-    message: "Password must be at least 8 characters",
+  @MinLength(8)
+  @MaxLength(100)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/, {
+    message:
+      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
   })
-  @MaxLength(128)
-  @Matches(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).*$/,
-    {
-      message:
-        "Password must include uppercase, lowercase, number, and special character",
-    }
-  )
   password!: string;
+
+  @IsOptional()
+  @IsEnum(["USER", "ADMIN"])
+  role?: string;
 }
-
-
