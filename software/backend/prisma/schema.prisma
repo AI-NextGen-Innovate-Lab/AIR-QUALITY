@@ -21,7 +21,19 @@ model User{
   role Role @default(USER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  activityLogs ActivityLog[]
 }
+
+model ActivityLog{
+  id Int @id @default(autoincrement())
+  action String
+  description String
+  userId Int
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metadata Json?
+  createdAt DateTime @default(now())
+}
+
 enum Role{
   USER
   ADMIN

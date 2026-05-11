@@ -7,9 +7,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+import { PartialType } from "@nestjs/mapped-types";
+import { CreateUserDto } from "./create-user.dto.js";
+import { IsEnum, IsOptional, IsString, IsEmail, MinLength, MaxLength, Matches } from "class-validator";
 import { Transform } from "class-transformer";
-import { IsEmail, IsString, Matches, MaxLength, MinLength, IsEnum, IsOptional, } from "class-validator";
-export class UpdateUserDto {
+export class UpdateUserDto extends PartialType(CreateUserDto) {
     name;
     email;
     password;

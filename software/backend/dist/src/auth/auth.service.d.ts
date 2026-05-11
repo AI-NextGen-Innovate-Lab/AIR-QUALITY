@@ -6,6 +6,7 @@ export declare class AuthService {
     private prisma;
     private jwt;
     constructor(prisma: PrismaService, jwt: JwtService);
+    private logAuthActivity;
     register(createAuthDto: CreateAuthDto): Promise<{
         user: any;
         access_token: string;

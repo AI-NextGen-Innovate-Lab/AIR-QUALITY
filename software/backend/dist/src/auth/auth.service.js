@@ -18,6 +18,31 @@ let AuthService = class AuthService {
         this.prisma = prisma;
         this.jwt = jwt;
     }
+    async logAuthActivity(userId, action, success, metadata = {}) {
+        try {
+            const prisma = this.prisma;
+            if (prisma.activityLog && typeof prisma.activityLog.create === 'function') {
+                await prisma.activityLog.create({
+                    data: {
+                        action: `AUTH_${action}`,
+                        description: `${action} attempt ${success ? 'succeeded' : 'failed'}`,
+                        userId,
+                        metadata: {
+                            success,
+                            timestamp: new Date().toISOString(),
+                            ...metadata,
+                        },
+                    },
+                });
+            }
+            else {
+                console.warn('ActivityLog model not available in Prisma client');
+            }
+        }
+        catch (error) {
+            console.error('Failed to log auth activity:', error);
+        }
+    }
     async register(createAuthDto) {
         try {
             const { email, password, name } = createAuthDto;
@@ -42,6 +67,7 @@ let AuthService = class AuthService {
                     role: true,
                 },
             });
+            await this.logAuthActivity(user.id, 'REGISTER', true);
             const access_token = this.jwt.sign({
                 id: user.id,
                 email: user.email,
@@ -75,12 +101,15 @@ let AuthService = class AuthService {
                 where: { email },
             });
             if (!user) {
+                await this.logAuthActivity(0, 'LOGIN', false, { email });
                 throw new UnauthorizedException('Invalid credentials');
             }
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (!isPasswordValid) {
+                await this.logAuthActivity(user.id, 'LOGIN', false, { email });
                 throw new UnauthorizedException('Invalid credentials');
             }
+            await this.logAuthActivity(user.id, 'LOGIN', true, { email });
             const access_token = this.jwt.sign({
                 id: user.id,
                 email: user.email,

@@ -71,7 +71,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ApiController.prototype, "remove", null);
 ApiController = __decorate([
-    Controller('api'),
+    Controller('status'),
     __metadata("design:paramtypes", [ApiService])
 ], ApiController);
 export { ApiController };

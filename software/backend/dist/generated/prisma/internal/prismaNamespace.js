@@ -24,7 +24,8 @@ export const DbNull = runtime.DbNull;
 export const JsonNull = runtime.JsonNull;
 export const AnyNull = runtime.AnyNull;
 export const ModelName = {
-    User: 'User'
+    User: 'User',
+    ActivityLog: 'ActivityLog'
 };
 export const TransactionIsolationLevel = runtime.makeStrictEnum({
     ReadUncommitted: 'ReadUncommitted',
@@ -37,15 +38,38 @@ export const UserScalarFieldEnum = {
     name: 'name',
     email: 'email',
     password: 'password',
-    role: 'role'
+    role: 'role',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+};
+export const ActivityLogScalarFieldEnum = {
+    id: 'id',
+    action: 'action',
+    description: 'description',
+    userId: 'userId',
+    metadata: 'metadata',
+    createdAt: 'createdAt'
 };
 export const SortOrder = {
     asc: 'asc',
     desc: 'desc'
 };
+export const NullableJsonNullValueInput = {
+    DbNull: DbNull,
+    JsonNull: JsonNull
+};
 export const QueryMode = {
     default: 'default',
     insensitive: 'insensitive'
+};
+export const JsonNullValueFilter = {
+    DbNull: DbNull,
+    JsonNull: JsonNull,
+    AnyNull: AnyNull
+};
+export const NullsOrder = {
+    first: 'first',
+    last: 'last'
 };
 export const defineExtension = runtime.Extensions.defineExtension;
 //# sourceMappingURL=prismaNamespace.js.map

@@ -20,18 +20,22 @@ export class AuthService {
   ) {
     try {
       const prisma = this.prisma as any;
-      await prisma.activityLog.create({
-        data: {
-          action: `AUTH_${action}`,
-          description: `${action} attempt ${success ? 'succeeded' : 'failed'}`,
-          userId,
-          metadata: {
-            success,
-            timestamp: new Date().toISOString(),
-            ...metadata,
+      if (prisma.activityLog && typeof prisma.activityLog.create === 'function') {
+        await prisma.activityLog.create({
+          data: {
+            action: `AUTH_${action}`,
+            description: `${action} attempt ${success ? 'succeeded' : 'failed'}`,
+            userId,
+            metadata: {
+              success,
+              timestamp: new Date().toISOString(),
+              ...metadata,
+            },
           },
-        },
-      });
+        });
+      } else {
+        console.warn('ActivityLog model not available in Prisma client');
+      }
     } catch (error) {
       console.error('Failed to log auth activity:', error);
     }
