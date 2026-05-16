@@ -63,18 +63,25 @@ let InfluxService = class InfluxService {
             ? `\n      |> filter(fn: (r) => r.id == "${this.escapeFluxString(query.sensorId)}")`
             : '';
         const fluxQuery = `
-      from(bucket: "${bucket}")
-        |> range(start: -${safeHours}h)
-        |> map(fn: (r) => ({
-            id: r.topic,
-            measurement: if exists r.name then r.name else r._measurement,
-            value: if exists r.value then r.value else r._value,
-            time: r._time
-        }))
-        |> filter(fn: (r) => exists r.id and r.id != "")${topicFilter}
-        |> sort(columns: ["time"], desc: true)
-        |> limit(n: ${safeLimit}, offset: ${offset})
-    `;
+  from(bucket: "${bucket}")
+    |> range(start: -${safeHours}h)
+
+    |> filter(fn: (r) => exists r._value)
+    |> filter(fn: (r) => r._field == "value")
+
+    |> map(fn: (r) => ({
+        id: if exists r.topic then r.topic else "",
+        measurement: if exists r.name then r.name else r._measurement,
+        value: float(v: r._value),
+        time: r._time
+    }))
+
+    |> filter(fn: (r) => r.id != "")
+    ${topicFilter}
+
+    |> sort(columns: ["time"], desc: true)
+    |> limit(n: ${safeLimit}, offset: ${offset})
+`;
         const results = [];
         return new Promise((resolve, reject) => {
             queryApi.queryRows(fluxQuery, {

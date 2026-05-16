@@ -12,7 +12,7 @@ export function filterRowsBySensor(rows, sensorId) {
 }
 
 /**
- * ✅ FULLY DYNAMIC BUCKETING:
+ *  FULLY DYNAMIC BUCKETING:
  * - Keeps AQI (from PM2.5 / PM10 if available)
  * - Keeps ALL other measurements (VOC, pressure, temperature, etc.)
  */

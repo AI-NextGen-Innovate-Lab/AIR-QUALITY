@@ -378,7 +378,7 @@ export default function AdminPanel() {
 
             {/* Add User Modal */}
             {showAddUserModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"> 
                 <div className={`${panel()} max-w-md w-full mx-4`}>
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Add new user</h3>
