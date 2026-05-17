@@ -6,7 +6,7 @@ export function buildUrl(pathWithLeadingSlash, searchParams) {
       : "";
   const base = import.meta.env.VITE_API_URL?.replace(/\/$/, "");
   if (base) return `${base}${pathWithLeadingSlash}${qs}`;
-  return `/backend${pathWithLeadingSlash}${qs}`;
+  return `/backend/api${pathWithLeadingSlash}${qs}`;
 }
 
 function getAuthHeaders() {
