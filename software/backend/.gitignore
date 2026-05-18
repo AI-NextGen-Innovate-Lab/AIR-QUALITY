@@ -60,3 +60,21 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
 >>>>>>> 556cbcd9f681ba1ace58abc90200e70a85c05eb4
+
+
+# Python virtual environment
+venv/
+.env/
+
+# Python cache
+__pycache__/
+*.pyc
+# Node modules
+node_modules/
+
+# VS Code
+.vscode/
+
+# Build files
+dist/
+build/

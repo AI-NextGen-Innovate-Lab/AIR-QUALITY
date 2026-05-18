@@ -16,7 +16,7 @@ export class InfluxService {
     if (rawUrl) {
       try {
         const parsed = new URL(rawUrl);
-        
+
         url = parsed.origin;
       } catch {
         url = rawUrl;
@@ -75,27 +75,45 @@ export class InfluxService {
     const topicFilter = query.sensorId
       ? `\n      |> filter(fn: (r) => r.id == "${this.escapeFluxString(query.sensorId)}")`
       : '';
-const fluxQuery = `
+    // const fluxQuery = `
+    //   from(bucket: "${bucket}")
+    //     |> range(start: -${safeHours}h)
+
+    //     |> filter(fn: (r) => exists r._value)
+    //     |> filter(fn: (r) => r._field == "value")
+
+    //     |> map(fn: (r) => ({
+    //         id: if exists r.topic then r.topic else "",
+    //         measurement: if exists r.name then r.name else r._measurement,
+    //         value: float(v: r._value),
+    //         time: r._time
+    //     }))
+
+    //     |> filter(fn: (r) => r.id != "")
+    //     ${topicFilter}
+
+    //     |> sort(columns: ["time"], desc: true)
+    //     |> limit(n: ${safeLimit}, offset: ${offset})
+    // `;
+    const fluxQuery = `
+  import "strings"
+  
   from(bucket: "${bucket}")
     |> range(start: -${safeHours}h)
-
     |> filter(fn: (r) => exists r._value)
     |> filter(fn: (r) => r._field == "value")
-
     |> map(fn: (r) => ({
-        id: if exists r.topic then r.topic else "",
+        id: if exists r.topic then strings.split(v: strings.split(v: r.topic, t: "/devices/")[1], t: "/")[0] else "",
         measurement: if exists r.name then r.name else r._measurement,
         value: float(v: r._value),
         time: r._time
     }))
-
+    |> filter(fn: (r) => r.id != "bme680-ph-dox-full-sensor-test")
     |> filter(fn: (r) => r.id != "")
     ${topicFilter}
-
     |> sort(columns: ["time"], desc: true)
     |> limit(n: ${safeLimit}, offset: ${offset})
 `;
-
     const results: Array<Record<string, unknown>> = [];
 
     return new Promise((resolve, reject) => {

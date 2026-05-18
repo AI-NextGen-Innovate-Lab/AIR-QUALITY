@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Navigation, ZoomIn, ZoomOut } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { fetchReadings } from '@/app/lib/api';
 import { calculateAQI, getAQICategory } from '@/app/lib/airQuality';
 import {
@@ -8,6 +8,28 @@ import {
   sensorSummary,
   topicToLatLng,
 } from '@/app/lib/sensorData';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix for default marker icons in Leaflet with React
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
+// Custom component to handle map centering
+function ChangeView({ center, zoom }) {
+  const map = useMap();
+  map.setView(center, zoom);
+  return null;
+}
 
 export function MapPage() {
   const navigate = useNavigate();
@@ -39,13 +61,14 @@ export function MapPage() {
   const sensorsWithCoords = useMemo(
     () =>
       sensors.map((s) => {
-        const { lat, lng } = topicToLatLng(s.id);
+        const { lat, lng, label } = topicToLatLng(s.id);
         const { pm25, pm10 } = sensorSummary(s);
         const aqi = calculateAQI(pm25, pm10).value;
         return {
           ...s,
           lat,
           lng,
+          label: label || s.id,
           aqi,
           category: getAQICategory(aqi),
         };
@@ -53,20 +76,6 @@ export function MapPage() {
     [sensors]
   );
 
-  const centerLat = -6.8;
-  const centerLng = 39.25;
-  const mapWidth = 1200;
-  const mapHeight = 800;
-
-  const latToY = (lat) => {
-    const latRange = 0.2;
-    return ((centerLat - lat) / latRange) * (mapHeight / 2) + mapHeight / 2;
-  };
-
-  const lngToX = (lng) => {
-    const lngRange = 0.15;
-    return ((lng - centerLng) / lngRange) * (mapWidth / 2) + mapWidth / 2;
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -84,142 +93,80 @@ export function MapPage() {
         {error && <p className="text-red-600 mb-4">{error}</p>}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 p-6 bg-white rounded-xl shadow">
-            <div
-              className="relative bg-blue-50 rounded-lg overflow-hidden"
-              style={{ height: '600px' }}
+          <div className="lg:col-span-2 p-6 bg-white rounded-xl shadow relative overflow-hidden" style={{ height: '700px' }}>
+            <MapContainer 
+              center={[-6.769, 39.240]} 
+              zoom={15} 
+              scrollWheelZoom={true}
+              style={{ height: '100%', width: '100%', borderRadius: '0.75rem', zIndex: 1 }}
             >
-              <div className="absolute inset-0">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-200 to-cyan-100" />
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              
+              <ChangeView center={selectedSensor ? [sensorsWithCoords.find(s => s.id === selectedSensor)?.lat || -6.769, sensorsWithCoords.find(s => s.id === selectedSensor)?.lng || 39.240] : [-6.769, 39.240]} zoom={selectedSensor ? 16 : 15} />
 
-                <svg viewBox="0 0 1200 800" className="w-full h-full">
-                  <path
-                    d="M 900 100 Q 850 200 900 300 L 900 700 Q 800 750 700 700 L 300 700 Q 200 650 150 500 L 150 300 Q 200 200 300 150 L 700 100 Q 800 80 900 100 Z"
-                    fill="#E8F5E9"
-                    stroke="#81C784"
-                    strokeWidth="2"
-                  />
-
-                  <circle cx="600" cy="400" r="80" fill="#FFF9C4" opacity="0.6" />
-                  <circle cx="500" cy="500" r="60" fill="#FFF9C4" opacity="0.6" />
-                  <circle cx="400" cy="350" r="50" fill="#FFF9C4" opacity="0.6" />
-
-                  <line
-                    x1="300"
-                    y1="400"
-                    x2="800"
-                    y2="400"
-                    stroke="#9E9E9E"
-                    strokeWidth="3"
-                    opacity="0.5"
-                  />
-                  <line
-                    x1="600"
-                    y1="200"
-                    x2="600"
-                    y2="600"
-                    stroke="#9E9E9E"
-                    strokeWidth="3"
-                    opacity="0.5"
-                  />
-                </svg>
-
-                {sensorsWithCoords.map((sensor) => {
-                  const x = lngToX(sensor.lng);
-                  const y = latToY(sensor.lat);
-                  const { category } = sensor;
-                  const isSelected = selectedSensor === sensor.id;
-
-                  return (
-                    <div
-                      key={sensor.id}
-                      className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-110"
-                      style={{ left: `${x}px`, top: `${y}px` }}
-                      onClick={() => setSelectedSensor(sensor.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ')
-                          setSelectedSensor(sensor.id);
-                      }}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      <div className="relative">
-                        {isSelected && (
-                          <div
-                            className="absolute -inset-2 rounded-full animate-ping opacity-75"
-                            style={{ backgroundColor: category.color }}
-                          />
-                        )}
-
-                        <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-2 border-white ${
-                            isSelected ? 'scale-125' : ''
-                          }`}
-                          style={{ backgroundColor: category.color }}
-                        >
-                          <span
-                            className="font-bold text-sm"
-                            style={{ color: category.textColor }}
-                          >
-                            {sensor.aqi}
-                          </span>
+              {sensorsWithCoords.map((sensor) => (
+                <Marker 
+                  key={sensor.id} 
+                  position={[sensor.lat, sensor.lng]}
+                  icon={L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `
+                      <div class="relative transform -translate-x-1/2 -translate-y-1/2">
+                        <div class="w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-all hover:scale-110" style="background-color: ${sensor.category.color}">
+                          <span class="font-bold text-sm" style="color: ${sensor.category.textColor}">${sensor.aqi}</span>
                         </div>
-
-                        {isSelected && (
-                          <div className="absolute top-14 left-1/2 -translate-x-1/2 bg-white px-2 py-1 rounded shadow text-xs max-w-[140px] truncate">
-                            {sensor.id}
-                          </div>
-                        )}
+                        ${selectedSensor === sensor.id ? `
+                          <div class="absolute -inset-2 rounded-full animate-ping opacity-75" style="background-color: ${sensor.category.color}"></div>
+                        ` : ''}
                       </div>
+                    `,
+                    iconSize: [48, 48],
+                    iconAnchor: [24, 24]
+                  })}
+                  eventHandlers={{
+                    click: () => setSelectedSensor(sensor.id),
+                  }}
+                >
+                  <Popup>
+                    <div className="p-2 min-w-[150px]">
+                      <p className="font-bold text-sm mb-0.5 text-blue-600">{sensor.label}</p>
+                      <p className="text-[10px] text-gray-400 mb-2 uppercase tracking-tighter">ID: {sensor.id}</p>
+                      <div className="flex items-center justify-between mb-3 bg-slate-50 p-2 rounded-lg">
+                        <span className="text-xs font-medium text-gray-500">Current AQI</span>
+                        <span className="text-lg font-black" style={{ color: sensor.category.color }}>{sensor.aqi}</span>
+                      </div>
+                      <button
+                        onClick={() => navigate(`/sensor/${encodeURIComponent(sensor.id)}`)}
+                        className="w-full bg-slate-900 text-white py-1.5 px-2 rounded-lg text-[11px] font-bold hover:bg-blue-600 transition-all shadow-sm"
+                      >
+                        Detailed Analytics
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
 
-              <div className="absolute top-4 right-4 flex flex-col gap-2">
-                <button
-                  type="button"
-                  className="p-2 bg-white rounded shadow hover:bg-gray-100"
-                  aria-label="Zoom in"
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  className="p-2 bg-white rounded shadow hover:bg-gray-100"
-                  aria-label="Zoom out"
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  className="p-2 bg-white rounded shadow hover:bg-gray-100"
-                  aria-label="Navigation"
-                >
-                  <Navigation className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="absolute bottom-4 left-4 bg-white p-4 rounded-lg shadow">
-                <p className="text-sm font-semibold mb-2">AQI Scale</p>
-                <div className="space-y-1 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-full bg-green-500" />
-                    <span>Good (0-50)</span>
+            {/* Legend Overlay */}
+            <div className="absolute bottom-10 left-10 bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-lg z-[1000] border border-gray-100">
+              <p className="text-sm font-bold text-gray-800 mb-3">Air Quality Index</p>
+              <div className="space-y-2">
+                {[
+                  { label: 'Good', color: '#10b981', range: '0-50' },
+                  { label: 'Moderate', color: '#facc15', range: '51-100' },
+                  { label: 'Sensitive', color: '#f97316', range: '101-150' },
+                  { label: 'Unhealthy', color: '#ef4444', range: '151-200' },
+                  { label: 'Very Unhealthy', color: '#8b5cf6', range: '201-300' },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: item.color }} />
+                    <span className="text-xs font-medium text-gray-600">{item.label}</span>
+                    <span className="text-[10px] text-gray-400 ml-auto">{item.range}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-full bg-yellow-400" />
-                    <span>Moderate (51-100)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-full bg-orange-500" />
-                    <span>Unhealthy for Sensitive</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-full bg-red-500" />
-                    <span>Unhealthy</span>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
@@ -259,10 +206,10 @@ export function MapPage() {
                   >
                     <div className="flex justify-between mb-2">
                       <div className="min-w-0 pr-2">
-                        <p className="font-medium text-sm truncate">{sensor.id}</p>
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <p className="font-bold text-sm text-slate-800 truncate">{sensor.label}</p>
+                        <p className="text-[10px] text-slate-400 flex items-center gap-1 uppercase font-bold tracking-tighter">
                           <MapPin className="w-3 h-3 shrink-0" />
-                          <span className="truncate">Topic / sensor ID</span>
+                          <span className="truncate">{sensor.id}</span>
                         </p>
                       </div>
 
