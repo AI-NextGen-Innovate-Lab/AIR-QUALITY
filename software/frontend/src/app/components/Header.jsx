@@ -11,6 +11,8 @@ import {
   BookOpen,
   Cloud,
   ChevronDown,
+  Heart,
+  TrendingUp,
 } from "lucide-react";
 import logo from "../../assets/logo.jpg"
 
@@ -43,6 +45,8 @@ export default function Header() {
   const publicLinks = [
     { path: "/", label: "Home", icon: Home },
     { path: "/map", label: "Map View", icon: Map },
+    { path: "/prediction", label: "Prediction", icon: TrendingUp },
+    { path: "/health-guide", label: "Health Guide", icon: Heart },
   ];
 
   const userLinks = [
@@ -59,8 +63,7 @@ export default function Header() {
   ];
 
   const adminLinks = [
-    { path: "/", label: "Home", icon: Home },
-    { path: "/map", label: "Map View", icon: Map },
+    ...publicLinks,
     { path: "/admin", label: "Admin Panel", icon: Shield },
     { path: "/sensor-status", label: "Sensor Status", icon: Settings },
     { path: "/user-dashboard", label: "Dashboard", icon: Database },
@@ -124,16 +127,6 @@ export default function Header() {
             );
           })}
 
-          <button
-            onClick={() => navigate("/api-docs")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
-              currentPath === "/api-docs"
-                ? "text-blue-600"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <BookOpen className="w-4 h-4" /> API Docs
-          </button>
         </nav>
 
         {/* Right Side */}

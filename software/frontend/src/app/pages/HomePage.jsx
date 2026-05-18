@@ -199,7 +199,6 @@ export function HomePage() {
                 sensorId={sensor.id}
                 measurements={sensor.measurements}
                 onClick={() =>
-                  className=
                   navigate(`/sensor/${encodeURIComponent(sensor.id)}`)
                 }
               />
