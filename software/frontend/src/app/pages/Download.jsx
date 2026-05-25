@@ -7,7 +7,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { fetchReadings } from '@/app/lib/api';
-import { groupReadingsBySensor } from '@/app/lib/sensorData';
+import { groupReadingsBySensor, formatSensorLabel } from '@/app/lib/sensorData';
 import { hoursForDownloadRange } from '@/app/lib/readings/downloadFilters';
 import { downloadTextFile, toCsv } from '@/app/lib/readings/csvExport';
 import { DashboardPage } from '@/app/components/layout/DashboardPage';
@@ -19,7 +19,7 @@ import { cn } from '@/app/lib/utils/cn';
 
 function choiceCard(active) {
   return cn(
-    'rounded-xl border-2 p-4 text-left transition-colors',
+    'w-full min-w-0 rounded-xl border-2 p-3 sm:p-4 text-left transition-colors',
     active
       ? 'border-brand-500 bg-brand-50'
       : 'border-border bg-surface-elevated hover:border-brand-300'
@@ -152,16 +152,17 @@ export default function Download() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <div className={panel()}>
-            <div className="mb-4 flex flex-wrap justify-between gap-3">
+      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          <div className={cn(panel(), 'min-w-0 overflow-hidden')}>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-lg font-semibold text-foreground">Select sensors</h3>
-              <div className="flex gap-2">
+              <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
+                  className="flex-1 sm:flex-none"
                   onClick={() => setSelectedSensors(sensors.map((s) => s.id))}
                 >
                   Select all
@@ -170,32 +171,50 @@ export default function Download() {
                   type="button"
                   variant="ghost"
                   size="sm"
+                  className="flex-1 sm:flex-none"
                   onClick={() => setSelectedSensors([])}
                 >
                   Deselect all
                 </Button>
               </div>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {sensors.map((sensor) => (
-                <label
-                  key={sensor.id}
-                  className={choiceCard(selectedSensors.includes(sensor.id))}
-                >
-                  <span className="flex gap-3">
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={selectedSensors.includes(sensor.id)}
-                      onChange={() => toggleSensor(sensor.id)}
-                    />
-                    <span className="text-sm font-medium text-foreground truncate">
-                      {sensor.id}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
+            {sensors.length === 0 ? (
+              <p className="text-sm text-muted">No sensors loaded yet.</p>
+            ) : (
+              <ul className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                {sensors.map((sensor) => {
+                  const selected = selectedSensors.includes(sensor.id);
+                  return (
+                    <li key={sensor.id} className="min-w-0">
+                      <label
+                        className={cn(
+                          choiceCard(selected),
+                          'flex cursor-pointer items-start gap-3'
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-border text-brand-600"
+                          checked={selected}
+                          onChange={() => toggleSensor(sensor.id)}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium text-foreground break-words">
+                            {formatSensorLabel(sensor.id)}
+                          </span>
+                          <span
+                            className="mt-0.5 block font-mono text-xs text-muted break-all line-clamp-3 sm:line-clamp-2"
+                            title={sensor.id}
+                          >
+                            {sensor.id}
+                          </span>
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
 
           <div className={panel()}>
@@ -237,8 +256,8 @@ export default function Download() {
           </div>
         </div>
 
-        <div>
-          <div className={cn(panel(), 'sticky top-24')}>
+        <div className="min-w-0">
+          <div className={cn(panel(), 'lg:sticky lg:top-24')}>
             <h3 className="mb-4 text-lg font-semibold text-foreground">Summary</h3>
             <dl className="space-y-2 text-sm text-muted">
               <div className="flex justify-between">
