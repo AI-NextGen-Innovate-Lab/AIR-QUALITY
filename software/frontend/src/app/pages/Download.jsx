@@ -87,7 +87,7 @@ export default function Download() {
 
       const setIds = new Set(selectedSensors);
 
-      // ✅ NO pollutant filtering — only sensor filtering
+      // NO pollutant filtering — only sensor filtering
       const filtered = (json.data || []).filter(
         (r) => r.id && setIds.has(r.id)
       );
@@ -98,7 +98,7 @@ export default function Download() {
         return;
       }
 
-      // ✅ Pivot data dynamically
+      //  Pivot data dynamically
       const grouped = {};
 
       filtered.forEach((r) => {

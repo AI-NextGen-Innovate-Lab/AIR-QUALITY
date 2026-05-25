@@ -46,7 +46,7 @@ function App() {
           <Route
             path="/user-dashboard"
             element={
-              <ProtectedRoutes roles={["user"]}>
+              <ProtectedRoutes roles={["user", "admin", "owner"]}>
                 <DataDashboard />
               </ProtectedRoutes>
             }
@@ -55,7 +55,7 @@ function App() {
           <Route
             path="/download"
             element={
-              <ProtectedRoutes roles={["user"]}>
+              <ProtectedRoutes roles={["user", "admin", "owner"]}>
                 <Download />
               </ProtectedRoutes>
             }
