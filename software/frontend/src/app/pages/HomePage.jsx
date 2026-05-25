@@ -193,13 +193,11 @@ export function HomePage() {
         ) : (
           <div className="grid grid-cols-1  md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sensors.map((sensor) => (
-              <AQICard 
-                className="border border-blue-300"
+              <AQICard
                 key={sensor.id}
                 sensorId={sensor.id}
                 measurements={sensor.measurements}
                 onClick={() =>
-                  className=
                   navigate(`/sensor/${encodeURIComponent(sensor.id)}`)
                 }
               />
