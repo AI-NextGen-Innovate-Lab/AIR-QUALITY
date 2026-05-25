@@ -34,6 +34,7 @@ export async function apiGet(pathWithLeadingSlash, params = {}) {
     try {
       const body = await res.json();
       if (body.error) message = body.error;
+      if (body.message) message = body.message;
     } catch {
       /* ignore */
     }
@@ -56,8 +57,8 @@ export async function apiPost(pathWithLeadingSlash, body) {
     let message = `Request failed (${res.status})`;
     try {
       const data = await res.json();
-      if (data.error) message = data.error;
       if (data.message) message = data.message;
+      if (data.error) message = data.error;
     } catch {
       /* ignore */
     }

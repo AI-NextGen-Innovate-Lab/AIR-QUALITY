@@ -16,7 +16,6 @@ import { StatCard } from '@/app/components/data/StatCard';
 import { LocationCard } from '@/app/components/data/LocationCard';
 import { LoadingBlock, ErrorBlock, EmptyBlock } from '@/app/components/data/DataState';
 import { PageSection } from '@/app/components/layout/PageSection';
-import { MapPreview } from '@/app/components/map/MapPreview';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { AirEducationSections } from '@/app/components/home/AirEducationSections';
@@ -121,23 +120,30 @@ export function HomePage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <PageSection className="py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-            <div className="lg:col-span-2">
-              <label className="block">
-                <span className="sr-only">Search monitoring locations</span>
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <input
-                    type="search"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search by sensor name or topic…"
-                    className="w-full h-14 sm:h-16 pl-12 pr-4 text-lg sm:text-xl rounded-2xl border border-border bg-surface-elevated text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition-shadow duration-300 focus:shadow-[var(--shadow-card-hover)]"
-                  />
-                </div>
-              </label>
-            </div>
-            <MapPreview sensors={sensors} loading={loading} />
+          <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <label className="block flex-1">
+              <span className="sr-only">Search monitoring locations</span>
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by sensor name or topic…"
+                  className="h-14 w-full rounded-2xl border border-border bg-surface-elevated pl-12 pr-4 text-lg text-foreground placeholder:text-muted-foreground transition-shadow duration-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:shadow-[var(--shadow-card-hover)] sm:h-16 sm:text-xl"
+                />
+              </div>
+            </label>
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              className="shrink-0 w-full sm:w-auto"
+              onClick={() => navigate('/map')}
+            >
+              <MapPin className="h-5 w-5" />
+              Open city map
+            </Button>
           </div>
 
           <HealthAdvicePanel aqi={city.aqi} className="mb-10" />

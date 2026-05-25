@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/backend/api";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUserState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
   const [error, setError] = useState(null);
@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
     
     if (savedUser && savedToken) {
       try {
-        setUser(JSON.parse(savedUser));
+        setUserState(JSON.parse(savedUser));
         setToken(savedToken);
       } catch (err) {
         console.error("Failed to parse saved user:", err);
@@ -30,11 +30,20 @@ export function AuthProvider({ children }) {
 
   // Save user and token to localStorage
   const saveSession = (userData, authToken) => {
-    setUser(userData);
+    setUserState(userData);
     setToken(authToken);
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("token", authToken);
   };
+
+  const setUser = useCallback((userData) => {
+    setUserState(userData);
+    if (userData) {
+      localStorage.setItem("user", JSON.stringify(userData));
+    } else {
+      localStorage.removeItem("user");
+    }
+  }, []);
 
   const login = async (email, password) => {
     setError(null);
@@ -66,7 +75,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    setUser(null);
+    setUserState(null);
     setToken(null);
     setError(null);
     localStorage.removeItem("user");
@@ -155,6 +164,7 @@ export function AuthProvider({ children }) {
         logout,
         register,
         validateToken,
+        setUser,
       }}
     >
       {!loading && children}
