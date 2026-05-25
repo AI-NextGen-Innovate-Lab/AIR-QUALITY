@@ -43,6 +43,7 @@ export function MapPreview({ sensors = [], loading }) {
           showExpand
           onExpand={() => navigate('/map')}
           className="rounded-none border-0"
+          interactive={false}
         />
       )}
     </Card>

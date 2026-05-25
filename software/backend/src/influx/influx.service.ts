@@ -39,18 +39,34 @@ export class InfluxService {
     return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   }
 
-  /** Normalize Influx row — avoid Flux map() mixing string/float into one column (server panic). */
+  /**
+   * Map Influx row → API reading.
+   * TTN/Telegraf schema: tag `topic` = sensor id, tag `name` = metric (PM2.5, PM10, …),
+   * `_field` = "value" | "unit" (Influx field key, not the metric name).
+   */
   private rowToReading(row: Record<string, unknown>) {
+    const influxField = String(row._field ?? '').trim();
+    // "unit" rows hold strings like "µg/m³" — skip them
+    if (influxField === 'unit') return null;
+
     const id = String(row.topic ?? row.id ?? '').trim();
-    const measurement = String(
-      row._field ?? row.name ?? row._measurement ?? '',
-    ).trim();
-    const raw = row.value ?? row._value;
+    if (!id) return null;
+
+    const metricName = String(row.name ?? '').trim();
+    const measurement =
+      metricName ||
+      (influxField !== 'value' ? influxField : '') ||
+      String(row._measurement ?? '').trim();
+
+    if (!measurement) return null;
+
+    const raw = row._value ?? row.value;
     let value: number | string | null = null;
     if (raw !== undefined && raw !== null) {
       const n = Number(raw);
       value = Number.isFinite(n) ? n : String(raw);
     }
+
     return {
       id,
       measurement,
@@ -101,6 +117,8 @@ export class InfluxService {
       from(bucket: "${bucket}")
         |> range(start: -${safeHours}h)${topicFilter}
         |> filter(fn: (r) => exists r.topic and r.topic != "")
+        |> filter(fn: (r) => exists r.name and r.name != "")
+        |> filter(fn: (r) => r._field == "value")
         |> sort(columns: ["_time"], desc: true)
         |> limit(n: ${safeLimit}, offset: ${offset})
     `;
@@ -119,7 +137,7 @@ export class InfluxService {
         next: (row, tableMeta) => {
           const data = tableMeta.toObject(row) as Record<string, unknown>;
           const reading = toReading(data);
-          if (reading.id) results.push(reading);
+          if (reading) results.push(reading);
         },
         error: (error) => {
           const msg = error?.message ?? String(error);

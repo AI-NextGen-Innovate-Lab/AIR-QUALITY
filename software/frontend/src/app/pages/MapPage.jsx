@@ -65,7 +65,7 @@ export function MapPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
       <PageSection
         title="Air quality map"
-        description="Stations across Dar es Salaam. Marker color reflects the current US EPA AQI. Select a station for details."
+        description="OpenStreetMap view of Dar es Salaam. Colored markers show live AQI per station — not a heat map."
         className="py-0"
       />
 
