@@ -104,12 +104,19 @@ export function MapPage() {
                 const label = formatSensorLabel(sensor.id);
 
                 return (
-                  <button
+                  <div
                     key={sensor.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedSensor(sensor.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedSensor(sensor.id);
+                      }
+                    }}
                     className={cn(
-                      'w-full text-left rounded-xl border p-3 transition-colors',
+                      'w-full text-left rounded-xl border p-3 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
                       isSelected
                         ? 'border-brand-500 bg-brand-50 ring-1 ring-brand-500/20'
                         : 'border-border hover:border-border-strong hover:bg-surface'
@@ -151,7 +158,7 @@ export function MapPage() {
                         View details
                       </Button>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
