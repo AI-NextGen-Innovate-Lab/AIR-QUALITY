@@ -1,3 +1,5 @@
+/** Nest global prefix is `api` — dev proxy: /backend/api/* → http://localhost:3000/api/* */
+const DEV_API_PREFIX = "/backend/api";
 
 export function buildUrl(pathWithLeadingSlash, searchParams) {
   const qs =
@@ -6,7 +8,7 @@ export function buildUrl(pathWithLeadingSlash, searchParams) {
       : "";
   const base = import.meta.env.VITE_API_URL?.replace(/\/$/, "");
   if (base) return `${base}${pathWithLeadingSlash}${qs}`;
-  return `/backend${pathWithLeadingSlash}${qs}`;
+  return `${DEV_API_PREFIX}${pathWithLeadingSlash}${qs}`;
 }
 
 function getAuthHeaders() {
