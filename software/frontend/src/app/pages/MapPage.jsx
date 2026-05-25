@@ -86,13 +86,13 @@ export function MapPage() {
             sensors={sensorsWithCoords}
             selectedId={selectedSensor}
             onSelectSensor={setSelectedSensor}
-            height={560}
+            height={640}
             showLegend
             showExpand={false}
           />
         </Card>
 
-        <Card className="border-border flex flex-col max-h-[560px]">
+        <Card className="border-border flex flex-col max-h-[640px]">
           <CardContent className="py-5 flex flex-col min-h-0 flex-1">
             <h3 className="font-semibold text-foreground mb-1">Stations</h3>
             <p className="text-xs text-muted mb-4">Sorted by current AQI</p>

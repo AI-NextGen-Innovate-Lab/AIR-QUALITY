@@ -64,7 +64,7 @@ function formatDate(iso) {
 }
 
 export default function UserProfile() {
-  const { user: sessionUser, token, loading: authLoading, setUser } = useAuth();
+  const { user: sessionUser, token, loading: authLoading, setUser, logout } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,11 +92,16 @@ export default function UserProfile() {
         setUser(data);
       })
       .catch((e) => {
-        if (!cancelled) {
-          setError(e.message || 'Could not load profile');
-          setProfile(sessionUser);
-          setName(sessionUser?.name || '');
+        if (cancelled) return;
+        if (e.status === 401) {
+          logout();
+          setError('Your session expired. Please sign in again.');
+          setProfile(null);
+          return;
         }
+        setError(e.message || 'Could not load profile');
+        setProfile(sessionUser);
+        setName(sessionUser?.name || '');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -129,7 +134,7 @@ export default function UserProfile() {
 
   if (authLoading || (token && loading)) {
     return (
-      <DashboardPage narrow>
+      <DashboardPage>
         <LoadingBlock message="Loading your profile…" />
       </DashboardPage>
     );
@@ -137,7 +142,7 @@ export default function UserProfile() {
 
   if (!sessionUser || !token) {
     return (
-      <DashboardPage narrow>
+      <DashboardPage>
         <PageHeader
           badge="Account"
           title="Profile"
@@ -165,7 +170,7 @@ export default function UserProfile() {
     .toUpperCase();
 
   return (
-    <DashboardPage narrow>
+    <DashboardPage>
       <PageHeader
         badge="Account"
         title="Your profile"

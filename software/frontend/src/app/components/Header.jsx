@@ -107,9 +107,8 @@ export default function Header() {
 
   const getLinks = () => {
     if (!user) return publicLinks;
-    const normalizedRole = user.role?.toLowerCase() || 'user';
-    if (normalizedRole === 'admin') return adminLinks;
-    if (normalizedRole === 'owner') return ownerLinks;
+    const role = String(user.role || 'USER').toUpperCase();
+    if (role === 'ADMIN' || role === 'OWNER') return role === 'ADMIN' ? adminLinks : ownerLinks;
     return userLinks;
   };
 

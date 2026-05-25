@@ -19,7 +19,7 @@ export function PageHeader({ title, description, action, badge, className }) {
           {title}
         </h1>
         {description && (
-          <p className="mt-2 text-muted max-w-2xl">{description}</p>
+          <p className="mt-2 text-muted">{description}</p>
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}

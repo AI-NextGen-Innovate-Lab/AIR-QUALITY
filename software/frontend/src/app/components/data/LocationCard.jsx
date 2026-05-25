@@ -35,7 +35,7 @@ export function LocationCard({
       <div className="flex justify-between items-start gap-3 mb-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-lg sm:text-xl font-bold text-foreground truncate">{label}</h3>
+            <h3 className="font-semibold text-foreground truncate">{label}</h3>
             <SensorStatusBadge status={conn} />
           </div>
           {label !== sensorId && (
@@ -47,13 +47,13 @@ export function LocationCard({
         </div>
         <div className="text-right shrink-0">
           <div
-            className="text-5xl sm:text-6xl font-bold tabular-nums leading-none"
+            className="text-4xl font-bold tabular-nums leading-none"
             style={{ color: category.color }}
           >
             {aqi.value}
           </div>
           <p
-            className="text-sm sm:text-base font-semibold mt-1"
+            className="text-xs font-semibold mt-1"
             style={{ color: category.color }}
           >
             {category.label}
@@ -61,7 +61,7 @@ export function LocationCard({
         </div>
       </div>
 
-      <div className="space-y-2.5 text-base mb-5">
+      <div className="space-y-2 text-sm mb-4">
         <div className="flex justify-between">
           <span className="text-muted">PM₂.₅</span>
           <span className="font-medium tabular-nums">
@@ -94,7 +94,7 @@ export function LocationCard({
           'w-full text-left group rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2'
         )}
       >
-        <Card className={cn('h-full card-interactive border-border', className)}>
+        <Card className={cn('h-full transition-shadow hover:shadow-[var(--shadow-card-hover)] border-border', className)}>
           {inner}
         </Card>
       </button>

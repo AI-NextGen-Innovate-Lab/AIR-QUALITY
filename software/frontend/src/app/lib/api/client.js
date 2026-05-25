@@ -33,12 +33,20 @@ export async function apiGet(pathWithLeadingSlash, params = {}) {
     let message = `Request failed (${res.status})`;
     try {
       const body = await res.json();
-      if (body.error) message = body.error;
       if (body.message) message = body.message;
+      if (body.error) message = body.error;
     } catch {
       /* ignore */
     }
-    throw new Error(message);
+    if (res.status === 401) {
+      message =
+        message === `Request failed (401)`
+          ? "Unauthorized — please sign in again"
+          : message;
+    }
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
   }
   return res.json();
 }

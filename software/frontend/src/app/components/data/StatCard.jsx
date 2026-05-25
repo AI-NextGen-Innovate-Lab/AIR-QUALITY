@@ -9,7 +9,6 @@ export function StatCard({
   onClick,
   className,
   accent = 'brand',
-  animationDelay = '',
 }) {
   const accentIcon = {
     brand: 'bg-brand-50 text-brand-700',
@@ -21,24 +20,21 @@ export function StatCard({
     <>
       <div
         className={cn(
-          'w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0 pulse-soft',
+          'w-12 h-12 rounded-xl flex items-center justify-center shrink-0',
           accentIcon[accent] ?? accentIcon.brand
         )}
       >
-        {Icon && <Icon className="w-7 h-7 sm:w-8 sm:h-8" />}
+        {Icon && <Icon className="w-6 h-6" />}
       </div>
       <div className="min-w-0">
-        <p className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground tabular-nums tracking-tight">
-          {value}
-        </p>
-        <p className="text-base sm:text-lg text-muted mt-1 leading-snug">{label}</p>
+        <p className="text-2xl font-bold text-foreground tabular-nums">{value}</p>
+        <p className="text-sm text-muted">{label}</p>
       </div>
     </>
   );
 
   const cardClass = cn(
-    'card-interactive animate-fade-in-up',
-    animationDelay,
+    'transition-shadow hover:shadow-[var(--shadow-card-hover)]',
     onClick && 'cursor-pointer',
     className
   );
@@ -47,7 +43,7 @@ export function StatCard({
     return (
       <button type="button" onClick={onClick} className="w-full text-left">
         <Card className={cardClass}>
-          <CardContent className="flex items-center gap-5 py-6 sm:py-8">{content}</CardContent>
+          <CardContent className="flex items-center gap-4 py-5">{content}</CardContent>
         </Card>
       </button>
     );
@@ -55,7 +51,7 @@ export function StatCard({
 
   return (
     <Card className={cardClass}>
-      <CardContent className="flex items-center gap-5 py-6 sm:py-8">{content}</CardContent>
+      <CardContent className="flex items-center gap-4 py-5">{content}</CardContent>
     </Card>
   );
 }
