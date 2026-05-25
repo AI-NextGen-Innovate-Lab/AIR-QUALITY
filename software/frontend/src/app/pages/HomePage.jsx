@@ -19,6 +19,8 @@ import { PageSection } from '@/app/components/layout/PageSection';
 import { MapPreview } from '@/app/components/map/MapPreview';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { AirEducationSections } from '@/app/components/home/AirEducationSections';
+import heroBackdrop from '@/assets/pawel-czerwinski-WZ7vr3YcQrg-unsplash.jpg';
 
 function averageCityMetrics(sensors) {
   if (!sensors.length) return { aqi: 0, pm25: undefined, pm10: undefined, dominant: '—' };
@@ -112,6 +114,8 @@ export function HomePage() {
         loading={loading}
         error={error}
         meta={heroMeta}
+        backgroundImage={heroBackdrop}
+        backgroundImageAlt="Sky with emissions from an industrial stack"
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -159,6 +163,8 @@ export function HomePage() {
           </div>
         </PageSection>
 
+        <AirEducationSections />
+
         <PageSection
           title="Monitoring locations"
           description="Tap a station for charts, history, and health guidance for that area."
@@ -196,26 +202,32 @@ export function HomePage() {
         </PageSection>
 
         <PageSection
-          title="How we measure air quality"
+          title="Open data & API"
+          description="Researchers and developers can pull the same readings that power this dashboard."
           className="border-t border-border pb-16"
         >
           <Card className="bg-brand-50/50 border-brand-100">
             <CardContent className="py-6 sm:py-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                <div className="max-w-2xl">
-                  <p className="text-sm text-muted leading-relaxed">
-                    Sensors report PM₂.₅ and PM₁₀ concentrations in µg/m³. We
-                    compute the US EPA Air Quality Index from the highest
-                    sub-index. Values update as new MQTT readings arrive in our
-                    database.
-                  </p>
+                <p className="max-w-2xl text-sm text-muted leading-relaxed">
+                  Sensors publish PM₂.₅, PM₁₀, and weather fields over MQTT into
+                  InfluxDB. The US EPA AQI is computed from the highest PM
+                  sub-index. See the sections above for what each measurement
+                  means, or use the API for your own analysis.
+                </p>
+                <div className="flex flex-wrap gap-3 shrink-0">
+                  <Link to="/map">
+                    <Button variant="secondary" type="button">
+                      City map
+                    </Button>
+                  </Link>
+                  <Link to="/api-docs">
+                    <Button type="button">
+                      <BookOpen className="w-4 h-4" />
+                      API documentation
+                    </Button>
+                  </Link>
                 </div>
-                <Link to="/api-docs">
-                  <Button variant="secondary" type="button">
-                    <BookOpen className="w-4 h-4" />
-                    API documentation
-                  </Button>
-                </Link>
               </div>
             </CardContent>
           </Card>
