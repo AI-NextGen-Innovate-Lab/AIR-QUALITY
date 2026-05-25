@@ -66,3 +66,12 @@ export function sensorSummary(sensor) {
   const pm10 = getLatestValue(sensor.measurements, isPM10Measurement);
   return { pm25, pm10, lastUpdate: sensor.lastUpdate };
 }
+
+/** Human-friendly label from MQTT topic / sensor id */
+export function formatSensorLabel(sensorId) {
+  const s = String(sensorId || '').trim();
+  if (!s) return 'Unknown sensor';
+  const parts = s.split(/[/\\]/).filter(Boolean);
+  const last = parts[parts.length - 1] || s;
+  return last.length > 48 ? `${last.slice(0, 45)}…` : last;
+}
