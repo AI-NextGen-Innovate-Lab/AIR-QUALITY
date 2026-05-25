@@ -1,244 +1,406 @@
-import React, { useState } from "react";
-import { useAuth } from "@/app/context/AuthContext";
-import { User, Mail, Shield, Key, Bell } from "lucide-react";
-import { toast } from "sonner";
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/app/context/AuthContext';
+import {
+  User,
+  Mail,
+  Shield,
+  Key,
+  Bell,
+  Calendar,
+  Hash,
+  Loader2,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { DashboardPage } from '@/app/components/layout/DashboardPage';
+import { PageHeader } from '@/app/components/layout/PageHeader';
+import { Button } from '@/app/components/ui/button';
+import { Card, CardContent } from '@/app/components/ui/card';
+import { ErrorBlock, LoadingBlock } from '@/app/components/data/DataState';
+import { fetchMyProfile, updateMyProfile } from '@/app/lib/api/profile';
+import { panel, tabBtn, inputClass, labelClass } from '@/app/lib/dashboardStyles';
+import { cn } from '@/app/lib/utils/cn';
 
-function panel() {
-  return "rounded-xl border border-gray-100 bg-white p-6 shadow-sm";
+function ProfileField({ icon: Icon, children, className }) {
+  if (!Icon) return null;
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-3 rounded-xl border border-border bg-surface-elevated px-4 focus-within:ring-2 focus-within:ring-brand-500/40 focus-within:border-brand-500 transition-shadow duration-300',
+        className
+      )}
+    >
+      <Icon className="h-5 w-5 shrink-0 text-brand-700" />
+      {children}
+    </div>
+  );
 }
 
-function labelCls() {
-  return "block text-sm font-medium text-gray-700";
+function formatRole(role) {
+  const r = String(role || 'USER').toUpperCase();
+  if (r === 'ADMIN') return 'Administrator';
+  if (r === 'OWNER') return 'Owner';
+  return 'User';
 }
 
-function inputCls() {
-  return "mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
+function roleBadgeClass(role) {
+  const r = String(role || 'USER').toUpperCase();
+  if (r === 'ADMIN') return 'bg-brand-50 text-brand-800 border-brand-200';
+  if (r === 'OWNER') return 'bg-aqi-sensitive-soft text-aqi-sensitive border-aqi-sensitive/30';
+  return 'bg-surface text-foreground border-border';
 }
 
-function tabBtn(active) {
-  return `rounded-lg px-4 py-2 text-sm font-medium ${
-    active ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-  }`;
-}
-
-function btnPrimary() {
-  return "rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700";
-}
-
-function btnOutline() {
-  return "rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50";
+function formatDate(iso) {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch {
+    return '—';
+  }
 }
 
 export default function UserProfile() {
-  const { user, switchRole } = useAuth();
-  const [name, setName] = useState(user?.name || "");
-  const [email, setEmail] = useState(user?.email || "");
-  const [tab, setTab] = useState("profile");
+  const { user: sessionUser, token, loading: authLoading, setUser, logout } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [name, setName] = useState('');
+  const [tab, setTab] = useState('profile');
 
-  const handleSaveProfile = () => {
-    toast.success("Profile updated (demo only — not persisted)");
+  useEffect(() => {
+    if (authLoading) return;
+    if (!token || !sessionUser) {
+      setLoading(false);
+      setProfile(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    fetchMyProfile()
+      .then((data) => {
+        if (cancelled) return;
+        setProfile(data);
+        setName(data.name || '');
+        setUser(data);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        if (e.status === 401) {
+          logout();
+          setError('Your session expired. Please sign in again.');
+          setProfile(null);
+          return;
+        }
+        setError(e.message || 'Could not load profile');
+        setProfile(sessionUser);
+        setName(sessionUser?.name || '');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, token, sessionUser?.id]);
+
+  const handleSaveProfile = async () => {
+    const trimmed = name.trim();
+    if (trimmed.length < 3) {
+      toast.error('Name must be at least 3 characters');
+      return;
+    }
+    setSaving(true);
+    try {
+      const updated = await updateMyProfile({ name: trimmed });
+      setProfile(updated);
+      setName(updated.name);
+      setUser(updated);
+      toast.success('Profile saved');
+    } catch (e) {
+      toast.error(e.message || 'Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (!user) {
+  if (authLoading || (token && loading)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className={`${panel()} max-w-md text-center`}>
-          <p className="text-gray-600">Please log in to view your profile</p>
-        </div>
-      </div>
+      <DashboardPage>
+        <LoadingBlock message="Loading your profile…" />
+      </DashboardPage>
     );
   }
 
+  if (!sessionUser || !token) {
+    return (
+      <DashboardPage>
+        <PageHeader
+          badge="Account"
+          title="Profile"
+          description="Sign in to view and edit your account."
+        />
+        <Card className="card-interactive">
+          <CardContent className="py-12 text-center">
+            <p className="text-muted mb-6">You are not signed in.</p>
+            <Link to="/login">
+              <Button type="button">Go to login</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </DashboardPage>
+    );
+  }
+
+  const display = profile || sessionUser;
+  const initials = (display.name || '?')
+    .split(' ')
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Profile settings</h1>
-          <p className="text-gray-600">Manage your demo account (client-side auth only)</p>
-        </div>
+    <DashboardPage>
+      <PageHeader
+        badge="Account"
+        title="Your profile"
+        description="Account details from the server. Email and role are managed by administrators."
+      />
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className={`${panel()} lg:col-span-1`}>
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-400">
-                <span className="text-3xl font-bold text-white">
-                  {user.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </span>
-              </div>
-              <h3 className="mb-1 text-lg font-semibold text-gray-900">{user.name}</h3>
-              <p className="mb-3 text-sm text-gray-600">{user.email}</p>
-              <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-medium capitalize text-blue-800">
-                {user.role.replace("_", " ")}
-              </span>
+      {error && (
+        <ErrorBlock message={error} className="mb-6" />
+      )}
 
-              <div className="mt-6 rounded-lg bg-blue-50 p-4 text-left">
-                <p className="mb-2 text-xs font-semibold text-blue-900">Demo: switch role</p>
-                <div className="space-y-2">
-                  {["public", "registered", "private_owner", "admin"].map((role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => switchRole(role)}
-                      className={`w-full rounded px-3 py-2 text-left text-sm transition-colors ${
-                        user.role === role
-                          ? "bg-blue-500 text-white"
-                          : "bg-white text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {role.replace("_", " ").replace(/^\w/, (c) => c.toUpperCase())}
-                    </button>
-                  ))}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <Card className={cn('lg:col-span-1 card-interactive overflow-hidden')}>
+          <CardContent className="py-8 text-center">
+            <div className="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-brand-400 text-4xl font-bold text-white shadow-lg">
+              {initials}
+            </div>
+            <h2 className="text-2xl font-bold text-foreground">{display.name}</h2>
+            <p className="mt-1 text-base text-muted break-all">{display.email}</p>
+            <span
+              className={cn(
+                'mt-4 inline-flex rounded-full border px-4 py-1.5 text-sm font-semibold',
+                roleBadgeClass(display.role)
+              )}
+            >
+              {formatRole(display.role)}
+            </span>
+
+            <dl className="mt-8 space-y-4 text-left border-t border-border pt-6">
+              <div className="flex items-start gap-3">
+                <Hash className="h-5 w-5 shrink-0 text-brand-700 mt-0.5" />
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    User ID
+                  </dt>
+                  <dd className="text-lg font-medium text-foreground tabular-nums">
+                    {display.id}
+                  </dd>
                 </div>
               </div>
-            </div>
+              <div className="flex items-start gap-3">
+                <Calendar className="h-5 w-5 shrink-0 text-brand-700 mt-0.5" />
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    Member since
+                  </dt>
+                  <dd className="text-base text-foreground">
+                    {formatDate(display.createdAt)}
+                  </dd>
+                </div>
+              </div>
+              {display.updatedAt && (
+                <div className="flex items-start gap-3">
+                  <Calendar className="h-5 w-5 shrink-0 text-muted mt-0.5" />
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
+                      Last updated
+                    </dt>
+                    <dd className="text-sm text-muted">
+                      {formatDate(display.updatedAt)}
+                    </dd>
+                  </div>
+                </div>
+              )}
+            </dl>
+          </CardContent>
+        </Card>
+
+        <div className="lg:col-span-2">
+          <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-4">
+            {[
+              { id: 'profile', label: 'Profile' },
+              { id: 'security', label: 'Security' },
+              { id: 'notifications', label: 'Notifications' },
+              { id: 'api', label: 'API access' },
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={tabBtn(tab === t.id)}
+                onClick={() => setTab(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
 
-          <div className="lg:col-span-2">
-            <div className="mb-4 flex flex-wrap gap-2 border-b border-gray-200 pb-3">
-              {[
-                { id: "profile", label: "Profile" },
-                { id: "security", label: "Security" },
-                { id: "notifications", label: "Notifications" },
-                { id: "api", label: "API access" },
-              ].map((t) => (
-                <button key={t.id} type="button" className={tabBtn(tab === t.id)} onClick={() => setTab(t.id)}>
-                  {t.label}
-                </button>
-              ))}
+          {tab === 'profile' && (
+            <div className={panel()}>
+              <h3 className="mb-6 text-xl font-bold text-foreground">
+                Personal information
+              </h3>
+              <div className="space-y-5">
+                <div>
+                  <label htmlFor="profile-name" className={labelClass}>
+                    Full name
+                  </label>
+                  <ProfileField icon={User} className="mt-2">
+                    <input
+                      id="profile-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="flex-1 border-0 bg-transparent py-3 text-base focus:outline-none"
+                      autoComplete="name"
+                    />
+                  </ProfileField>
+                </div>
+                <div>
+                  <label htmlFor="profile-email" className={labelClass}>
+                    Email
+                  </label>
+                  <ProfileField icon={Mail} className="mt-2 opacity-90">
+                    <input
+                      id="profile-email"
+                      type="email"
+                      readOnly
+                      value={display.email || ''}
+                      className="flex-1 border-0 bg-transparent py-3 text-base text-muted cursor-not-allowed focus:outline-none"
+                    />
+                  </ProfileField>
+                  <p className="mt-2 text-sm text-muted">
+                    Contact an administrator to change your email address.
+                  </p>
+                </div>
+                <div>
+                  <label htmlFor="profile-role" className={labelClass}>
+                    Role
+                  </label>
+                  <ProfileField icon={Shield} className="mt-2 opacity-90">
+                    <input
+                      id="profile-role"
+                      readOnly
+                      value={formatRole(display.role)}
+                      className="flex-1 border-0 bg-transparent py-3 text-base cursor-not-allowed focus:outline-none"
+                    />
+                  </ProfileField>
+                </div>
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto"
+                  onClick={handleSaveProfile}
+                  disabled={saving || name.trim() === (display.name || '')}
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    'Save changes'
+                  )}
+                </Button>
+              </div>
             </div>
+          )}
 
-            {tab === "profile" && (
-              <div className={panel()}>
-                <h3 className="mb-4 text-lg font-semibold">Personal information</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="name" className={labelCls()}>
-                      Full name
-                    </label>
-                    <div className="relative mt-1">
-                      <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      <input
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className={`${inputCls()} pl-10`}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="email" className={labelCls()}>
-                      Email
-                    </label>
-                    <div className="relative mt-1">
-                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      <input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className={`${inputCls()} pl-10`}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="role" className={labelCls()}>
-                      Role
-                    </label>
-                    <div className="relative mt-1">
-                      <Shield className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      <input
-                        id="role"
-                        readOnly
-                        value={
-                          user.role.replace("_", " ").replace(/^\w/, (c) => c.toUpperCase())
-                        }
-                        className={`${inputCls()} cursor-not-allowed bg-gray-50 pl-10`}
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">Use the demo role switcher to change role.</p>
-                  </div>
-                  <button type="button" className={`${btnPrimary()} w-full`} onClick={handleSaveProfile}>
-                    Save changes
-                  </button>
-                </div>
+          {tab === 'security' && (
+            <div className={panel()}>
+              <h3 className="mb-4 text-xl font-bold text-foreground">Security</h3>
+              <p className="text-base text-muted leading-relaxed">
+                Password changes are not available in the app yet. Use a strong unique
+                password when registering.
+              </p>
+              <div className="mt-6">
+                <label className={labelClass}>Password</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  className={cn(inputClass, 'mt-2')}
+                  disabled
+                />
               </div>
-            )}
+            </div>
+          )}
 
-            {tab === "security" && (
-              <div className={panel()}>
-                <h3 className="mb-4 text-lg font-semibold">Security</h3>
-                <p className="text-sm text-gray-600">
-                  Password and session management are not wired to this demo backend.
-                </p>
-                <div className="mt-6 space-y-3">
-                  <div>
-                    <label className={labelCls()}>Current password</label>
-                    <input type="password" placeholder="••••••••" className={inputCls()} disabled />
-                  </div>
-                  <button type="button" className={`${btnOutline()} w-full`} disabled>
-                    Update password (not available)
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {tab === "notifications" && (
-              <div className={panel()}>
-                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-                  <Bell className="h-5 w-5" />
-                  Notifications
-                </h3>
-                <p className="mb-4 text-sm text-gray-600">
-                  Preferences are not persisted. Toggle UI only.
-                </p>
-                {[
-                  ["Email notifications", true],
-                  ["Air quality alerts", true],
-                  ["Weekly reports", false],
-                ].map(([label, defaultOn]) => (
+          {tab === 'notifications' && (
+            <div className={panel()}>
+              <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-foreground">
+                <Bell className="h-6 w-6" />
+                Notifications
+              </h3>
+              <p className="mb-6 text-base text-muted">
+                Alert preferences will be available in a future release.
+              </p>
+              {['Email notifications', 'Air quality alerts', 'Weekly reports'].map(
+                (label) => (
                   <label
                     key={label}
-                    className="mb-3 flex cursor-pointer items-center justify-between border-b border-gray-100 py-2"
+                    className="mb-4 flex items-center justify-between border-b border-border py-3"
                   >
-                    <span className="text-sm font-medium text-gray-800">{label}</span>
-                    <input type="checkbox" defaultChecked={defaultOn} className="h-4 w-4 rounded border-gray-300" />
+                    <span className="font-medium text-foreground">{label}</span>
+                    <input
+                      type="checkbox"
+                      disabled
+                      className="h-5 w-5 rounded border-border"
+                    />
                   </label>
-                ))}
-              </div>
-            )}
+                )
+              )}
+            </div>
+          )}
 
-            {tab === "api" && (
-              <div className={panel()}>
-                <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-                  <Key className="h-5 w-5" />
-                  API access
-                </h3>
-                {user.role === "registered" || user.role === "private_owner" || user.role === "admin" ? (
-                  <div className="space-y-4 text-sm text-gray-700">
-                    <p>
-                      The monitoring API is <code className="rounded bg-gray-100 px-1">GET /api/readings</code> and{" "}
-                      <code className="rounded bg-gray-100 px-1">GET /api/health</code>. Keys are not issued through
-                      this UI; configure <code className="rounded bg-gray-100 px-1">VITE_API_URL</code> or the Vite
-                      proxy for the frontend.
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      InfluxDB credentials stay on the server via environment variables.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-gray-600">
-                    <Key className="mx-auto mb-4 h-12 w-12 text-gray-300" />
-                    <p>API documentation is available after registering (demo role).</p>
-                  </div>
+          {tab === 'api' && (
+            <div className={panel()}>
+              <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-foreground">
+                <Key className="h-6 w-6" />
+                API access
+              </h3>
+              <div className="space-y-4 text-base text-muted leading-relaxed">
+                <p>
+                  Public readings:{' '}
+                  <code className="rounded-lg bg-surface px-2 py-0.5 text-sm text-foreground border border-border">
+                    GET /api/readings
+                  </code>
+                </p>
+                <p>
+                  Authenticated routes use your JWT from login. Influx credentials
+                  remain on the server only.
+                </p>
+                {(display.role === 'ADMIN' || display.role === 'OWNER') && (
+                  <Link to="/api-docs">
+                    <Button type="button" variant="secondary">
+                      API documentation
+                    </Button>
+                  </Link>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </DashboardPage>
   );
 }

@@ -10,26 +10,26 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Clock, 
-  TrendingUp, 
+import {
+  TrendingUp,
   TrendingDown,
-  Download,
   Search,
   ChevronUp,
   ChevronDown,
-  Activity,
   Droplet,
   Wind,
-  Eye
+  Eye,
 } from "lucide-react";
+import { SensorDetailHero } from "@/app/components/aqi/SensorDetailHero";
+import { HealthAdvicePanel } from "@/app/components/aqi/HealthAdvicePanel";
+import { Card, CardContent } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { connectionStatusFromLastMs } from "@/app/lib/sensors/sensorStatusModel";
+import { cn } from "@/app/lib/utils/cn";
 import { fetchSensorReadings } from "@/app/lib/api";
 import {
   calculateAQI,
   getAQICategory,
-  getHealthRecommendations,
 } from "@/app/lib/airQuality";
 import {
   getLatestValue,
@@ -41,20 +41,13 @@ import {
 } from "@/app/lib/sensorData";
 import { buildBucketedSeries } from "@/app/lib/readings/chartSeries";
 
-function panelClass() {
-  return "rounded-xl border border-gray-100 bg-white p-6 shadow-sm hover:shadow-md transition-shadow duration-300";
-}
-
-function btnGhost() {
-  return "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors";
-}
-
 function tabBtn(active) {
-  return `rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+  return cn(
+    "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
     active
-      ? "bg-blue-600 text-white shadow-md"
-      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-  }`;
+      ? "bg-brand-600 text-white shadow-sm"
+      : "bg-surface text-muted hover:text-foreground border border-border"
+  );
 }
 
 function badgeClass(value, type = "aqi") {
@@ -128,8 +121,6 @@ export default function LocationDetails() {
   const latestPm10 = getLatestValue(measurements, isPM10Measurement);
   const aqiResult = calculateAQI(latestPm25, latestPm10);
   const category = getAQICategory(aqiResult?.value ?? 0);
-  const recommendations = getHealthRecommendations(aqiResult?.value ?? 0);
-
   const lastUpdateMs = useMemo(() => {
     const g = groupReadingsBySensor(rows);
     const mine = g.find((s) => s.id === sensorId);
@@ -236,147 +227,74 @@ export default function LocationDetails() {
 
   const { lat, lng } = topicToLatLng(sensorId);
 
+  const connStatus = connectionStatusFromLastMs(lastUpdateMs);
+
   if (!sensorId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">📍</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Invalid Sensor Link</h2>
-          <p className="text-gray-600 mb-4">The sensor you're looking for doesn't exist or has been moved.</p>
-          <button type="button" className={`${btnGhost()} bg-blue-600 text-white hover:bg-blue-700`} onClick={() => navigate("/")}>
-            Return to Dashboard
-          </button>
-        </div>
+      <div className="min-h-[50vh] flex items-center justify-center px-4">
+        <Card className="max-w-md w-full text-center">
+          <CardContent className="py-12">
+            <h2 className="text-xl font-bold text-foreground mb-2">Invalid sensor link</h2>
+            <p className="text-muted text-sm mb-6">
+              This monitoring location could not be found.
+            </p>
+            <Button onClick={() => navigate("/")}>Return home</Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <button type="button" className={`${btnGhost()} flex items-center gap-2`} onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to Dashboard
-            </button>
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm shadow-md"
-              disabled={tableData.length === 0}
-            >
-              <Download className="h-4 w-4" />
-              Export Data
-            </button>
-          </div>
-
-          <div className="mt-6 flex flex-col justify-between gap-6 md:flex-row md:items-start">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {sensorId}
-              </h1>
-              <div className="mt-3 space-y-2">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <MapPin className="h-4 w-4 text-blue-500" />
-                  <span className="text-sm">
-                    Location: {lat.toFixed(4)}°N, {lng.toFixed(4)}°E
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-500">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm">
-                    Last update:{" "}
-                    {lastUpdateMs
-                      ? new Date(lastUpdateMs).toLocaleString()
-                      : loading
-                        ? "Loading..."
-                        : "No data"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div
-                className="mx-auto mb-2 flex h-28 w-28 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105"
-                style={{ backgroundColor: category.color }}
-              >
-                <span
-                  className="text-5xl font-bold"
-                  style={{ color: category.textColor }}
-                >
-                  {aqiResult?.value ?? "—"}
-                </span>
-              </div>
-              <div
-                className="inline-block rounded-full px-4 py-1.5 shadow-md"
-                style={{ backgroundColor: category.color }}
-              >
-                <span
-                  className="text-sm font-semibold"
-                  style={{ color: category.textColor }}
-                >
-                  {category.label}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div>
+      <SensorDetailHero
+        sensorId={sensorId}
+        aqi={aqiResult?.value ?? 0}
+        lastUpdateMs={lastUpdateMs}
+        lat={lat}
+        lng={lng}
+        connStatus={connStatus}
+        loading={loading}
+        onBack={() => navigate(-1)}
+        onExport={handleExportCSV}
+        exportDisabled={tableData.length === 0}
+      />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
-            ⚠️ {error}
+          <div className="mb-6 rounded-xl border border-aqi-unhealthy/30 bg-aqi-unhealthy-soft/40 p-4 text-aqi-unhealthy text-sm">
+            {error}
           </div>
         )}
 
-        {/* Health Recommendations */}
-        <div
-          className={`${panelClass()} mb-8 border-l-4 transition-all`}
-          style={{ borderLeftColor: category.color }}
-        >
-          <h2 className="mb-4 text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Health Recommendations
-          </h2>
-          <ul className="space-y-2">
-            {recommendations.map((rec, i) => (
-              <li key={i} className="flex items-start gap-2 text-gray-700">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
-                {rec}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <HealthAdvicePanel aqi={aqiResult?.value ?? 0} className="mb-8" />
 
-        {/* Current Measurements */}
-        <div className={`${panelClass()} mb-8`}>
-          <h2 className="mb-6 text-xl font-semibold text-gray-900 flex items-center gap-2">
-            <Eye className="h-5 w-5" />
-            Current Readings
+        <Card className="mb-8 border-border">
+          <CardContent className="pt-6">
+          <h2 className="mb-6 text-xl font-semibold text-foreground flex items-center gap-2">
+            <Eye className="h-5 w-5 text-brand-600" />
+            Current readings
           </h2>
-          
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 p-5 text-center transform transition-all hover:scale-105">
+            <div className="rounded-xl bg-brand-50 border border-brand-100 p-5 text-center">
               <div className="flex items-center justify-center mb-2">
                 <Wind className="h-5 w-5 text-blue-600" />
               </div>
-              <div className="text-xs text-gray-600 font-medium mb-1">PM2.5</div>
-              <div className="text-3xl font-bold text-blue-600">
+              <div className="text-xs text-muted font-medium mb-1">PM₂.₅</div>
+              <div className="text-3xl font-bold text-brand-700">
                 {latestPm25 !== undefined && latestPm25 !== null ? latestPm25.toFixed(1) : "—"}
               </div>
               <div className="text-xs text-gray-500 mt-1">µg/m³</div>
               {latestPm25 !== undefined && latestPm25 !== null && getTrendIcon(latestPm25)}
             </div>
             
-            <div className="rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 p-5 text-center transform transition-all hover:scale-105">
+            <div className="rounded-xl bg-surface border border-border p-5 text-center">
               <div className="flex items-center justify-center mb-2">
                 <Droplet className="h-5 w-5 text-purple-600" />
               </div>
-              <div className="text-xs text-gray-600 font-medium mb-1">PM10</div>
-              <div className="text-3xl font-bold text-purple-600">
+              <div className="text-xs text-muted font-medium mb-1">PM₁₀</div>
+              <div className="text-3xl font-bold text-foreground">
                 {latestPm10 !== undefined && latestPm10 !== null ? latestPm10.toFixed(1) : "—"}
               </div>
               <div className="text-xs text-gray-500 mt-1">µg/m³</div>
@@ -414,12 +332,13 @@ export default function LocationDetails() {
               </details>
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Charts */}
-        <div className={panelClass()}>
+        <Card className="mb-8 border-border">
+          <CardContent className="pt-6">
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">Historical Analysis</h2>
+            <h2 className="text-xl font-semibold text-foreground">Historical analysis</h2>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -550,17 +469,19 @@ export default function LocationDetails() {
           {/* Toggle Raw Data Button */}
           <div className="mt-6 text-center">
             <button
+              type="button"
               onClick={() => setShowRawData(!showRawData)}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              className="text-sm text-brand-700 hover:text-brand-800 font-medium"
             >
-              {showRawData ? "Hide Detailed Data" : "Show Detailed Data Table"}
+              {showRawData ? "Hide detailed data" : "Show detailed data table"}
             </button>
           </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Enhanced Data Table */}
         {showRawData && (
-          <div className={`${panelClass()} mt-8`} style={{ animation: 'fadeIn 0.3s ease-out' }}>
+          <Card className="mt-8 border-border">
+            <CardContent className="pt-6">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Detailed Readings</h3>
@@ -742,7 +663,8 @@ export default function LocationDetails() {
                 </div>
               </div>
             )}
-          </div>
+            </CardContent>
+          </Card>
         )}
       </div>
 

@@ -1,28 +1,41 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AQICard } from '@/app/components/AQICard';
+import { Activity, MapPin, Search, TrendingUp, BookOpen } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { fetchReadings } from '@/app/lib/api';
-import {
-  calculateAQI,
-  getAQICategory,
-  getHealthRecommendations,
-} from '@/app/lib/airQuality';
+import { calculateAQI } from '@/app/lib/airQuality';
 import {
   groupReadingsBySensor,
   sensorSummary,
+  formatSensorLabel,
 } from '@/app/lib/sensorData';
-import { AlertCircle, TrendingUp, Activity, MapPin } from 'lucide-react';
+import { formatRelativeMinutes } from '@/app/lib/sensors/sensorStatusModel';
+import { AqiHero } from '@/app/components/aqi/AqiHero';
+import { HealthAdvicePanel } from '@/app/components/aqi/HealthAdvicePanel';
+import { StatCard } from '@/app/components/data/StatCard';
+import { LocationCard } from '@/app/components/data/LocationCard';
+import { LoadingBlock, ErrorBlock, EmptyBlock } from '@/app/components/data/DataState';
+import { PageSection } from '@/app/components/layout/PageSection';
+import { Card, CardContent } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
+import { AirEducationSections } from '@/app/components/home/AirEducationSections';
+import heroBackdrop from '@/assets/pawel-czerwinski-WZ7vr3YcQrg-unsplash.jpg';
 
-function averageCityAQI(sensors) {
-  if (!sensors.length) return 0;
-  const values = sensors
-    .map((s) => {
-      const { pm25, pm10 } = sensorSummary(s);
-      return calculateAQI(pm25, pm10).value;
-    })
-    .filter((v) => v > 0);
-  if (!values.length) return 0;
-  return values.reduce((a, b) => a + b, 0) / values.length;
+function averageCityMetrics(sensors) {
+  if (!sensors.length) return { aqi: 0, pm25: undefined, pm10: undefined, dominant: '—' };
+  const pm25s = [];
+  const pm10s = [];
+  for (const s of sensors) {
+    const { pm25, pm10 } = sensorSummary(s);
+    if (pm25 !== undefined) pm25s.push(pm25);
+    if (pm10 !== undefined) pm10s.push(pm10);
+  }
+  const avg = (arr) =>
+    arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : undefined;
+  const pm25 = avg(pm25s);
+  const pm10 = avg(pm10s);
+  const { value, dominant } = calculateAQI(pm25, pm10);
+  return { aqi: value, pm25, pm10, dominant };
 }
 
 export function HomePage() {
@@ -30,6 +43,7 @@ export function HomePage() {
   const [sensors, setSensors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -51,9 +65,15 @@ export function HomePage() {
     };
   }, []);
 
-  const cityAQI = useMemo(() => averageCityAQI(sensors), [sensors]);
-  const cityCategory = getAQICategory(cityAQI);
-  const recommendations = getHealthRecommendations(cityAQI);
+  const city = useMemo(() => averageCityMetrics(sensors), [sensors]);
+
+  const lastRefreshMs = useMemo(
+    () =>
+      sensors.length
+        ? Math.max(...sensors.map((s) => s.lastUpdate || 0))
+        : 0,
+    [sensors]
+  );
 
   const goodLocationsCount = useMemo(
     () =>
@@ -64,148 +84,159 @@ export function HomePage() {
     [sensors]
   );
 
+  const filteredSensors = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return sensors;
+    return sensors.filter((s) => {
+      const label = formatSensorLabel(s.id).toLowerCase();
+      return s.id.toLowerCase().includes(q) || label.includes(q);
+    });
+  }, [sensors, search]);
+
+  const heroMeta =
+    !loading && !error && lastRefreshMs ? (
+      <span>
+        {sensors.length} sensor{sensors.length !== 1 ? 's' : ''} reporting · Last
+        refresh {formatRelativeMinutes(lastRefreshMs)}
+      </span>
+    ) : null;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-br from-blue-600 to-cyan-500 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-          <h1 className="text-4xl font-bold mb-2">Dar es Salaam Air Quality</h1>
-          <p className="text-blue-100 text-lg">
-            Real-time monitoring across the city
-          </p>
+    <div>
+      <AqiHero
+        title="Air quality in Dar es Salaam"
+        subtitle="Real-time particulate matter monitoring from sensors across the city. Open data for public health and research."
+        aqi={city.aqi}
+        dominantPollutant={city.dominant}
+        pm25={city.pm25}
+        pm10={city.pm10}
+        loading={loading}
+        error={error}
+        meta={heroMeta}
+        backgroundImage={heroBackdrop}
+        backgroundImageAlt="Sky with emissions from an industrial stack"
+      />
 
-          <div className="bg-white p-8 rounded-xl shadow-md text-center max-w-2xl mx-auto mt-8">
-            <p className="text-gray-600 text-sm uppercase mb-2">
-              City-wide Air Quality Index
-            </p>
-
-            {loading ? (
-              <p className="text-gray-600 py-12">Loading latest readings…</p>
-            ) : error ? (
-              <p className="text-red-600 py-8">{error}</p>
-            ) : (
-              <>
-                <div
-                  className="w-32 h-32 mx-auto rounded-full flex items-center justify-center mb-4"
-                  style={{ backgroundColor: cityCategory.color }}
-                >
-                  <span
-                    className="font-bold text-5xl"
-                    style={{ color: cityCategory.textColor }}
-                  >
-                    {Math.round(cityAQI)}
-                  </span>
-                </div>
-
-                <div
-                  className="inline-block px-6 py-2 rounded-full mb-4"
-                  style={{ backgroundColor: cityCategory.color }}
-                >
-                  <span
-                    className="text-xl font-semibold"
-                    style={{ color: cityCategory.textColor }}
-                  >
-                    {cityCategory.label}
-                  </span>
-                </div>
-
-                <p className="text-gray-700">{cityCategory.description}</p>
-              </>
-            )}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <PageSection className="py-8">
+          <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <label className="block flex-1">
+              <span className="sr-only">Search monitoring locations</span>
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by sensor name or topic…"
+                  className="w-full h-12 pl-12 pr-4 rounded-2xl border border-border bg-surface-elevated text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500"
+                />
+              </div>
+            </label>
+            <Button
+              type="button"
+              variant="secondary"
+              className="shrink-0 w-full sm:w-auto"
+              onClick={() => navigate('/map')}
+            >
+              <MapPin className="h-4 w-4" />
+              Open city map
+            </Button>
           </div>
-        </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div
-          className="mb-8 p-4 rounded-lg bg-white shadow border-l-4"
-          style={{ borderLeftColor: cityCategory.color }}
+          <HealthAdvicePanel aqi={city.aqi} className="mb-10" />
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
+            <StatCard
+              icon={Activity}
+              value={loading ? '—' : sensors.length}
+              label="Active sensors"
+            />
+            <StatCard
+              icon={TrendingUp}
+              value={loading ? '—' : goodLocationsCount}
+              label="Good air locations (PM₂.₅ ≤ 12)"
+              accent="good"
+            />
+            <StatCard
+              icon={MapPin}
+              value="Map"
+              label="Explore all stations on the city map"
+              accent="map"
+              onClick={() => navigate('/map')}
+            />
+          </div>
+        </PageSection>
+
+        <AirEducationSections />
+
+        <PageSection
+          title="Monitoring locations"
+          description="Tap a station for charts, history, and health guidance for that area."
+          className="pt-0 border-t border-border"
         >
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 mt-1 text-gray-600" />
-            <div>
-              <h3 className="font-semibold text-gray-900">
-                Health Recommendations
-              </h3>
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                {recommendations.map((rec, index) => (
-                  <li key={index} className="text-sm text-gray-700">
-                    {rec}
-                  </li>
-                ))}
-              </ul>
+          {loading ? (
+            <LoadingBlock message="Loading sensors…" />
+          ) : error ? (
+            <ErrorBlock message={error} />
+          ) : sensors.length === 0 ? (
+            <EmptyBlock
+              title="No sensor data"
+              description="No readings in the last 24 hours. Check that the backend and InfluxDB are running."
+            />
+          ) : filteredSensors.length === 0 ? (
+            <EmptyBlock
+              title="No matches"
+              description={`No sensors match "${search}". Try another name or clear the search.`}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredSensors.map((sensor) => (
+                <LocationCard
+                  key={sensor.id}
+                  sensorId={sensor.id}
+                  measurements={sensor.measurements}
+                  lastUpdate={sensor.lastUpdate}
+                  onClick={() =>
+                    navigate(`/sensor/${encodeURIComponent(sensor.id)}`)
+                  }
+                />
+              ))}
             </div>
-          </div>
-        </div>
+          )}
+        </PageSection>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="p-6 bg-white border border-blue-300 rounded-xl shadow flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg  flex items-center justify-center">
-              <Activity className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{sensors.length}</p>
-              <p className="text-sm text-gray-600">Active Sensors</p>
-            </div>
-          </div>
-
-          <div className="p-6 bg-white border border-blue-300 rounded-xl shadow flex items-center gap-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{goodLocationsCount}</p>
-              <p className="text-sm text-gray-600">Good Quality Locations</p>
-            </div>
-          </div>
-
-          <div
-            className="p-6 bg-white border border-blue-300 rounded-xl shadow flex items-center gap-4 cursor-pointer hover:shadow-lg"
-            onClick={() => navigate('/map')}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') navigate('/map');
-            }}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <MapPin className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">View Map</p>
-              <p className="text-sm text-gray-600">Interactive City Map</p>
-            </div>
-          </div>
-        </div>
-
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Monitoring Locations
-        </h2>
-
-        {loading ? (
-          <p className="text-gray-600">Loading sensors…</p>
-        ) : error ? (
-          <p className="text-red-600">{error}</p>
-        ) : sensors.length === 0 ? (
-          <p className="text-gray-600">
-            No sensor data in the last 24 hours. Check the backend and InfluxDB
-            connection.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1  md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sensors.map((sensor) => (
-              <AQICard 
-                className="border border-blue-300"
-                key={sensor.id}
-                sensorId={sensor.id}
-                measurements={sensor.measurements}
-                onClick={() =>
-                  className=
-                  navigate(`/sensor/${encodeURIComponent(sensor.id)}`)
-                }
-              />
-            ))}
-          </div>
-        )}
+        <PageSection
+          title="Open data & API"
+          description="Researchers and developers can pull the same readings that power this dashboard."
+          className="border-t border-border pb-16"
+        >
+          <Card className="bg-brand-50/50 border-brand-100">
+            <CardContent className="py-6 sm:py-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                <p className="text-sm text-muted leading-relaxed max-w-2xl">
+                  Sensors publish PM₂.₅, PM₁₀, and weather fields over MQTT into
+                  InfluxDB. The US EPA AQI is computed from the highest PM
+                  sub-index. See the sections above for what each measurement
+                  means, or use the API for your own analysis.
+                </p>
+                <div className="flex flex-wrap gap-3 shrink-0">
+                  <Link to="/map">
+                    <Button variant="secondary" type="button">
+                      City map
+                    </Button>
+                  </Link>
+                  <Link to="/api-docs">
+                    <Button type="button">
+                      <BookOpen className="w-4 h-4" />
+                      API documentation
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </PageSection>
       </div>
     </div>
   );

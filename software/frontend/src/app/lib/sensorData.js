@@ -4,13 +4,20 @@ function measurementName(m) {
 
 export function isPM25Measurement(m) {
   const n = measurementName(m);
-  return n.includes('pm2.5') || n.includes('pm2_5');
+  return (
+    n === 'pm2.5' ||
+    n.includes('pm2.5') ||
+    n.includes('pm2_5') ||
+    n === 'pm25'
+  );
 }
 
 export function isPM10Measurement(m) {
   const n = measurementName(m);
   if (!n.includes('pm10')) return false;
   if (n.includes('pm100') || n.includes('pm 100')) return false;
+  // avoid matching pm2.5 as pm10
+  if (n.includes('pm2')) return false;
   return true;
 }
 
@@ -44,25 +51,19 @@ export function groupReadingsBySensor(rows) {
   }));
 }
 
-/**
- * Stable pseudo-coordinates inside Dar es Salaam bounds (topics have no lat/lng in API).
- */
-export function topicToLatLng(topicId) {
-  const s = String(topicId);
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) {
-    h = Math.imul(h, 33) ^ s.charCodeAt(i);
-  }
-  const u = (Math.abs(h) % 10000) / 10000;
-  const v = (Math.abs(h >> 8) % 10000) / 10000;
-  return {
-    lat: -6.88 + u * 0.2,
-    lng: 39.18 + v * 0.15,
-  };
-}
+export { topicToLatLng, extractDeviceSlug, DSM_CENTER } from '@/app/lib/sensorLocations';
 
 export function sensorSummary(sensor) {
   const pm25 = getLatestValue(sensor.measurements, isPM25Measurement);
   const pm10 = getLatestValue(sensor.measurements, isPM10Measurement);
   return { pm25, pm10, lastUpdate: sensor.lastUpdate };
+}
+
+/** Human-friendly label from MQTT topic / sensor id */
+export function formatSensorLabel(sensorId) {
+  const s = String(sensorId || '').trim();
+  if (!s) return 'Unknown sensor';
+  const parts = s.split(/[/\\]/).filter(Boolean);
+  const last = parts[parts.length - 1] || s;
+  return last.length > 48 ? `${last.slice(0, 45)}…` : last;
 }

@@ -39,6 +39,42 @@ export class InfluxService {
     return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   }
 
+  /**
+   * Map Influx row → API reading.
+   * TTN/Telegraf schema: tag `topic` = sensor id, tag `name` = metric (PM2.5, PM10, …),
+   * `_field` = "value" | "unit" (Influx field key, not the metric name).
+   */
+  private rowToReading(row: Record<string, unknown>) {
+    const influxField = String(row._field ?? '').trim();
+    // "unit" rows hold strings like "µg/m³" — skip them
+    if (influxField === 'unit') return null;
+
+    const id = String(row.topic ?? row.id ?? '').trim();
+    if (!id) return null;
+
+    const metricName = String(row.name ?? '').trim();
+    const measurement =
+      metricName ||
+      (influxField !== 'value' ? influxField : '') ||
+      String(row._measurement ?? '').trim();
+
+    if (!measurement) return null;
+
+    const raw = row._value ?? row.value;
+    let value: number | string | null = null;
+    if (raw !== undefined && raw !== null) {
+      const n = Number(raw);
+      value = Number.isFinite(n) ? n : String(raw);
+    }
+
+    return {
+      id,
+      measurement,
+      value,
+      time: row._time ?? row.time,
+    };
+  }
+
   getHealth() {
     return {
       ok: true,
@@ -73,62 +109,47 @@ export class InfluxService {
     const safeHours = Math.min(Math.max(Number.isNaN(hoursRaw) ? 24 : hoursRaw, 1), 24 * 30);
     const offset = (safePage - 1) * safeLimit;
     const topicFilter = query.sensorId
-      ? `\n      |> filter(fn: (r) => r.id == "${this.escapeFluxString(query.sensorId)}")`
+      ? `\n        |> filter(fn: (r) => r.topic == "${this.escapeFluxString(query.sensorId)}")`
       : '';
 
-//    const fluxQuery = `
-//     import "str
-//   from(bucket: "${bucket}")
-//     |> range(start: -${safeHours}h)
-//     |> filter(fn: (r) => exists r._value)
-//     |> map(fn: (r) => ({
-//         id: if exists r.topic then r.topic else "",
-//         measurement: if exists r.name then r.name else r._measurement,
-//         value: float(v: r._value),
-//         time: r._time
-//     }))
-//     |> filter(fn: (r) => r.id != "")
-//     ${topicFilter}
-//     |> sort(columns: ["time"], desc: true)
-//     |> limit(n: ${safeLimit}, offset: ${offset})
-// `;
+    // Never use map() to merge r.value (string) and r._value (float) — that panics Influx.
     const fluxQuery = `
-  import "strings"
-  
-  from(bucket: "${bucket}")
-    |> range(start: -${safeHours}h)
-    |> filter(fn: (r) => exists r._value)
-    |> filter(fn: (r) => r._field == "value")
-    |> map(fn: (r) => ({
-        id: if exists r.topic then strings.split(v: strings.split(v: r.topic, t: "/devices/")[1], t: "/")[0] else "",
-        measurement: if exists r.name then r.name else r._measurement,
-        value: float(v: r._value),
-        time: r._time
-    }))
-    |> filter(fn: (r) => r.id != "bme680-ph-dox-full-sensor-test")
-    |> filter(fn: (r) => r.id != "")
-    ${topicFilter}
-    |> sort(columns: ["time"], desc: true)
-    |> limit(n: ${safeLimit}, offset: ${offset})
-`;
+      from(bucket: "${bucket}")
+        |> range(start: -${safeHours}h)${topicFilter}
+        |> filter(fn: (r) => exists r.topic and r.topic != "")
+        |> filter(fn: (r) => exists r.name and r.name != "")
+        |> filter(fn: (r) => r._field == "value")
+        |> sort(columns: ["_time"], desc: true)
+        |> limit(n: ${safeLimit}, offset: ${offset})
+    `;
 
-    const results: Array<Record<string, unknown>> = [];
+    const results: Array<{
+      id: string;
+      measurement: string;
+      value: number | string | null;
+      time: unknown;
+    }> = [];
+
+    const toReading = (row: Record<string, unknown>) => this.rowToReading(row);
 
     return new Promise((resolve, reject) => {
       queryApi.queryRows(fluxQuery, {
-        next(row, tableMeta) {
-          const data = tableMeta.toObject(row);
-          results.push(data);
+        next: (row, tableMeta) => {
+          const data = tableMeta.toObject(row) as Record<string, unknown>;
+          const reading = toReading(data);
+          if (reading) results.push(reading);
         },
-        error(error) {
+        error: (error) => {
+          const msg = error?.message ?? String(error);
           reject(
             new InternalServerErrorException({
-              error: error.message,
-              suggestion: 'Try reducing the time range or hours parameter',
+              error: msg,
+              suggestion:
+                'Influx query failed. Restart the backend after code changes, or reduce hours/limit.',
             }),
           );
         },
-        complete() {
+        complete: () => {
           resolve({
             data: results,
             pagination: {

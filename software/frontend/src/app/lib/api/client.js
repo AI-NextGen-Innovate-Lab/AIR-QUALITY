@@ -1,3 +1,5 @@
+/** Nest global prefix is `api` — dev proxy: /backend/api/* → http://localhost:3000/api/* */
+const DEV_API_PREFIX = "/backend/api";
 
 export function buildUrl(pathWithLeadingSlash, searchParams) {
   const qs =
@@ -6,7 +8,7 @@ export function buildUrl(pathWithLeadingSlash, searchParams) {
       : "";
   const base = import.meta.env.VITE_API_URL?.replace(/\/$/, "");
   if (base) return `${base}${pathWithLeadingSlash}${qs}`;
-  return `/backend${pathWithLeadingSlash}${qs}`;
+  return `${DEV_API_PREFIX}${pathWithLeadingSlash}${qs}`;
 }
 
 function getAuthHeaders() {
@@ -31,11 +33,20 @@ export async function apiGet(pathWithLeadingSlash, params = {}) {
     let message = `Request failed (${res.status})`;
     try {
       const body = await res.json();
+      if (body.message) message = body.message;
       if (body.error) message = body.error;
     } catch {
       /* ignore */
     }
-    throw new Error(message);
+    if (res.status === 401) {
+      message =
+        message === `Request failed (401)`
+          ? "Unauthorized — please sign in again"
+          : message;
+    }
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
   }
   return res.json();
 }
@@ -44,6 +55,30 @@ export async function apiPost(pathWithLeadingSlash, body) {
   const url = buildUrl(pathWithLeadingSlash);
   const res = await fetch(url, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data.message) message = data.message;
+      if (data.error) message = data.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+export async function apiPut(pathWithLeadingSlash, body) {
+  const url = buildUrl(pathWithLeadingSlash);
+  const res = await fetch(url, {
+    method: "PUT",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
@@ -64,10 +99,10 @@ export async function apiPost(pathWithLeadingSlash, body) {
   return res.json();
 }
 
-export async function apiPut(pathWithLeadingSlash, body) {
+export async function apiPatch(pathWithLeadingSlash, body) {
   const url = buildUrl(pathWithLeadingSlash);
   const res = await fetch(url, {
-    method: "PUT",
+    method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
