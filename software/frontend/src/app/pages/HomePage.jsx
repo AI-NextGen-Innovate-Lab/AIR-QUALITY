@@ -20,6 +20,7 @@ import { MapPreview } from '@/app/components/map/MapPreview';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { AirEducationSections } from '@/app/components/home/AirEducationSections';
+import { cn } from '@/app/lib/utils/cn';
 import heroBackdrop from '@/assets/pawel-czerwinski-WZ7vr3YcQrg-unsplash.jpg';
 
 function averageCityMetrics(sensors) {
@@ -131,7 +132,7 @@ export function HomePage() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search by sensor name or topic…"
-                    className="w-full h-12 pl-12 pr-4 rounded-2xl border border-border bg-surface-elevated text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500"
+                    className="w-full h-14 sm:h-16 pl-12 pr-4 text-lg sm:text-xl rounded-2xl border border-border bg-surface-elevated text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition-shadow duration-300 focus:shadow-[var(--shadow-card-hover)]"
                   />
                 </div>
               </label>
@@ -141,17 +142,19 @@ export function HomePage() {
 
           <HealthAdvicePanel aqi={city.aqi} className="mb-10" />
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
             <StatCard
               icon={Activity}
               value={loading ? '—' : sensors.length}
               label="Active sensors"
+              animationDelay="animate-delay-100"
             />
             <StatCard
               icon={TrendingUp}
               value={loading ? '—' : goodLocationsCount}
               label="Good air locations (PM₂.₅ ≤ 12)"
               accent="good"
+              animationDelay="animate-delay-200"
             />
             <StatCard
               icon={MapPin}
@@ -159,6 +162,7 @@ export function HomePage() {
               label="Explore all stations on the city map"
               accent="map"
               onClick={() => navigate('/map')}
+              animationDelay="animate-delay-300"
             />
           </div>
         </PageSection>
@@ -166,6 +170,7 @@ export function HomePage() {
         <AirEducationSections />
 
         <PageSection
+          variant="display"
           title="Monitoring locations"
           description="Tap a station for charts, history, and health guidance for that area."
           className="pt-0 border-t border-border"
@@ -185,13 +190,17 @@ export function HomePage() {
               description={`No sensors match "${search}". Try another name or clear the search.`}
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredSensors.map((sensor) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredSensors.map((sensor, i) => (
                 <LocationCard
                   key={sensor.id}
                   sensorId={sensor.id}
                   measurements={sensor.measurements}
                   lastUpdate={sensor.lastUpdate}
+                  className={cn(
+                    'animate-fade-in-up',
+                    ['animate-delay-100', 'animate-delay-200', 'animate-delay-300', 'animate-delay-400', 'animate-delay-500'][i % 5]
+                  )}
                   onClick={() =>
                     navigate(`/sensor/${encodeURIComponent(sensor.id)}`)
                   }
@@ -202,14 +211,15 @@ export function HomePage() {
         </PageSection>
 
         <PageSection
+          variant="display"
           title="Open data & API"
           description="Researchers and developers can pull the same readings that power this dashboard."
           className="border-t border-border pb-16"
         >
-          <Card className="bg-brand-50/50 border-brand-100">
-            <CardContent className="py-6 sm:py-8">
+          <Card className="bg-brand-50/50 border-brand-100 card-interactive animate-fade-in-up">
+            <CardContent className="py-8 sm:py-10">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                <p className="max-w-2xl text-sm text-muted leading-relaxed">
+                <p className="max-w-2xl text-base sm:text-lg text-muted leading-relaxed">
                   Sensors publish PM₂.₅, PM₁₀, and weather fields over MQTT into
                   InfluxDB. The US EPA AQI is computed from the highest PM
                   sub-index. See the sections above for what each measurement

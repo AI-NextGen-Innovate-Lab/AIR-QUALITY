@@ -89,3 +89,117 @@
 .leaflet-control-attribution {
   font-size: 10px;
 }
+
+/* Homepage — large type, card motion, soft pulse */
+@layer utilities {
+  .card-interactive {
+    transition:
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.35s ease;
+  }
+
+  .card-interactive:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .card-interactive:active {
+    transform: translateY(-2px);
+    transition-duration: 0.15s;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+  .animate-delay-400 {
+    animation-delay: 400ms;
+  }
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .pulse-soft {
+    animation: pulse-soft 3s ease-in-out infinite;
+  }
+
+  .pulse-ring {
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .pulse-glow {
+    animation: pulse-glow 2.5s ease-in-out infinite;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.88;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(13 148 136 / 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgb(13 148 136 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(13 148 136 / 0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-interactive {
+    transition: box-shadow 0.2s ease;
+  }
+  .card-interactive:hover {
+    transform: none;
+  }
+  .animate-fade-in-up,
+  .pulse-soft,
+  .pulse-ring,
+  .pulse-glow {
+    animation: none;
+  }
+}

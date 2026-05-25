@@ -30,9 +30,9 @@ export function MapPreview({ sensors = [], loading }) {
   );
 
   return (
-    <Card className="overflow-hidden border-border h-full min-h-[280px]">
+    <Card className="overflow-hidden border-border h-full min-h-[280px] card-interactive animate-fade-in-up animate-delay-200">
       {loading ? (
-        <div className="h-[280px] flex items-center justify-center text-muted text-sm animate-pulse">
+        <div className="h-[280px] flex items-center justify-center text-muted text-lg pulse-soft">
           Loading map…
         </div>
       ) : (

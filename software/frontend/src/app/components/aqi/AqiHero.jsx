@@ -46,43 +46,49 @@ export function AqiHero({
           />
         </>
       )}
-      <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-brand-100/60 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-brand-50 blur-2xl pointer-events-none" />
+      <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-brand-100/60 blur-3xl pointer-events-none pulse-glow" />
+      <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-brand-50 blur-2xl pointer-events-none pulse-soft" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
         <div className="max-w-3xl">
           {backgroundImageAlt ? (
             <span className="sr-only">{backgroundImageAlt}</span>
           ) : null}
-          <p className="text-sm font-medium text-brand-700 uppercase tracking-wide">
+          <p className="inline-flex items-center gap-2 text-sm sm:text-base font-semibold text-brand-700 uppercase tracking-widest">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-aqi-good opacity-75 pulse-ring" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-aqi-good" />
+            </span>
             Live monitoring
           </p>
-          <h1 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
+          <h1 className="mt-3 text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight leading-[1.1]">
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-3 text-lg text-muted max-w-2xl">{subtitle}</p>
+            <p className="mt-4 text-xl sm:text-2xl text-muted max-w-2xl leading-relaxed">{subtitle}</p>
           )}
-          {meta && <div className="mt-4 text-sm text-muted-foreground">{meta}</div>}
+          {meta && (
+            <div className="mt-5 text-base sm:text-lg text-muted-foreground">{meta}</div>
+          )}
         </div>
 
-        <Card className="mt-8 max-w-xl border-border/80 shadow-[var(--shadow-card-hover)]">
-          <CardContent className="pt-6 pb-6">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted text-center mb-4">
+        <Card className="mt-10 max-w-2xl border-border/80 shadow-[var(--shadow-card-hover)] card-interactive animate-fade-in-up animate-delay-200">
+          <CardContent className="pt-8 pb-8 sm:pt-10 sm:pb-10">
+            <p className="text-sm sm:text-base font-semibold uppercase tracking-wider text-muted text-center mb-6">
               Air Quality Index (US EPA)
             </p>
 
             {loading ? (
-              <div className="py-12 text-center text-muted animate-pulse">
+              <div className="py-14 text-center text-lg text-muted pulse-soft">
                 Loading latest readings…
               </div>
             ) : error ? (
-              <p className="py-8 text-center text-aqi-unhealthy text-sm">{error}</p>
+              <p className="py-10 text-center text-aqi-unhealthy text-base sm:text-lg">{error}</p>
             ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-8 sm:gap-10">
-                <AqiValue value={aqi} size="lg" />
-                <div className="flex-1 w-full space-y-3 min-w-0">
-                  <p className="text-sm text-muted leading-relaxed text-center sm:text-left">
+              <div className="flex flex-col sm:flex-row items-center gap-8 sm:gap-12">
+                <AqiValue value={aqi} size="lg" pulse />
+                <div className="flex-1 w-full space-y-4 min-w-0">
+                  <p className="text-base sm:text-lg text-muted leading-relaxed text-center sm:text-left">
                     {category.description}
                   </p>
                   <div className="rounded-xl bg-surface border border-border p-4 space-y-2">
