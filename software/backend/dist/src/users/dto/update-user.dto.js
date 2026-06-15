@@ -7,11 +7,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-import { PartialType } from "@nestjs/mapped-types";
-import { CreateUserDto } from "./create-user.dto.js";
-import { IsEnum, IsOptional, IsString, IsEmail, MinLength, MaxLength, Matches } from "class-validator";
-import { Transform } from "class-transformer";
-export class UpdateUserDto extends PartialType(CreateUserDto) {
+import { Transform } from 'class-transformer';
+import { IsEmail, IsString, Matches, MaxLength, MinLength, IsEnum, IsOptional, } from 'class-validator';
+export class UpdateUserDto {
     name;
     email;
     password;
@@ -24,7 +22,7 @@ __decorate([
     MinLength(3),
     MaxLength(50),
     Matches(/^[a-zA-Z\s'-]+$/, {
-        message: "Name can only contain letters, spaces, hyphens, and apostrophes",
+        message: 'Name can only contain letters, spaces, hyphens, and apostrophes',
     }),
     __metadata("design:type", String)
 ], UpdateUserDto.prototype, "name", void 0);
@@ -40,13 +38,13 @@ __decorate([
     MinLength(8),
     MaxLength(100),
     Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/, {
-        message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+        message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
     }),
     __metadata("design:type", String)
 ], UpdateUserDto.prototype, "password", void 0);
 __decorate([
     IsOptional(),
-    IsEnum(["USER", "ADMIN", "OWNER"]),
+    IsEnum(['USER', 'ADMIN', 'OWNER']),
     __metadata("design:type", String)
 ], UpdateUserDto.prototype, "role", void 0);
 //# sourceMappingURL=update-user.dto.js.map

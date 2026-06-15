@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Activity, MapPin, Search, TrendingUp, BookOpen } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { fetchReadings } from '@/app/lib/api';
+import React, { useMemo, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Activity, MapPin, Search, TrendingUp, BookOpen, AlertTriangle, Shield } from 'lucide-react';
+import { useAuth } from '@/app/context/AuthContext';
+import { useReadingsQuery } from '@/app/hooks/useReadingsQuery';
 import { calculateAQI } from '@/app/lib/airQuality';
 import {
   groupReadingsBySensor,
@@ -19,6 +19,12 @@ import { PageSection } from '@/app/components/layout/PageSection';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { AirEducationSections } from '@/app/components/home/AirEducationSections';
+import {
+  AqiTrendChart,
+  countOfflineSensors,
+  countOnlineSensors,
+} from '@/app/components/home/AqiTrendChart';
+import { MapPreview } from '@/app/components/map/MapPreview';
 import heroBackdrop from '@/assets/pawel-czerwinski-WZ7vr3YcQrg-unsplash.jpg';
 
 function averageCityMetrics(sensors) {
@@ -38,40 +44,38 @@ function averageCityMetrics(sensors) {
   return { aqi: value, pm25, pm10, dominant };
 }
 
+function RoleCtaBanner({ user, navigate }) {
+  if (!user) return null;
+  const role = String(user.role || 'USER').toUpperCase();
+  const config =
+    role === 'ADMIN'
+      ? { label: 'Open Admin Center', path: '/admin' }
+      : role === 'OWNER'
+        ? { label: 'Manage Infrastructure', path: '/private-sensors' }
+        : { label: 'Open Analytics Dashboard', path: '/user-dashboard' };
+
+  return (
+    <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-sm font-medium text-zinc-100">Signed in as {user.name}</p>
+        <p className="text-xs text-zinc-500">Access your personalized dashboard and API tools.</p>
+      </div>
+      <Button onClick={() => navigate(config.path)}>{config.label}</Button>
+    </div>
+  );
+}
+
 export function HomePage() {
   const navigate = useNavigate();
-  const [sensors, setSensors] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
+  const { loading, error, data: rawReadings } = useReadingsQuery({ limit: 1000, page: 1, hours: 24 });
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const json = await fetchReadings({ limit: 1000, page: 1 });
-        if (cancelled) return;
-        setSensors(groupReadingsBySensor(json.data || []));
-      } catch (e) {
-        if (!cancelled) setError(e.message || 'Failed to load readings');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+  const sensors = useMemo(() => groupReadingsBySensor(rawReadings), [rawReadings]);
   const city = useMemo(() => averageCityMetrics(sensors), [sensors]);
 
   const lastRefreshMs = useMemo(
-    () =>
-      sensors.length
-        ? Math.max(...sensors.map((s) => s.lastUpdate || 0))
-        : 0,
+    () => (sensors.length ? Math.max(...sensors.map((s) => s.lastUpdate || 0)) : 0),
     [sensors]
   );
 
@@ -96,16 +100,16 @@ export function HomePage() {
   const heroMeta =
     !loading && !error && lastRefreshMs ? (
       <span>
-        {sensors.length} sensor{sensors.length !== 1 ? 's' : ''} reporting · Last
-        refresh {formatRelativeMinutes(lastRefreshMs)}
+        Live sensor network · {sensors.length} reporting · Updated{' '}
+        {formatRelativeMinutes(lastRefreshMs)}
       </span>
     ) : null;
 
   return (
     <div>
       <AqiHero
-        title="Air quality in Dar es Salaam"
-        subtitle="Real-time particulate matter monitoring from sensors across the city. Open data for public health and research."
+        title="Dar es Salaam"
+        subtitle="City-wide air quality intelligence from a live sensor network. Open data for public health and research."
         aqi={city.aqi}
         dominantPollutant={city.dominant}
         pm25={city.pm25}
@@ -117,63 +121,57 @@ export function HomePage() {
         backgroundImageAlt="Sky with emissions from an industrial stack"
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <PageSection className="py-8">
+          <RoleCtaBanner user={user} navigate={navigate} />
+
+          <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <StatCard icon={TrendingUp} value={loading ? '—' : Math.round(city.aqi)} label="City AQI" />
+            <StatCard icon={Activity} value={loading ? '—' : countOnlineSensors(sensors)} label="Sensors online" />
+            <StatCard icon={MapPin} value={loading ? '—' : 1} label="City covered" />
+            <StatCard
+              icon={AlertTriangle}
+              value={loading ? '—' : countOfflineSensors(sensors)}
+              label="Offline sensors"
+              accent={countOfflineSensors(sensors) > 0 ? 'warn' : undefined}
+            />
+            <StatCard icon={Shield} value={loading ? '—' : goodLocationsCount} label="Good air zones" accent="good" />
+          </div>
+
+          <div className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <AqiTrendChart readings={rawReadings} loading={loading} />
+            </div>
+            <MapPreview sensors={sensors} loading={loading} />
+          </div>
+
           <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center">
             <label className="block flex-1">
               <span className="sr-only">Search monitoring locations</span>
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500" />
                 <input
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by sensor name or topic…"
-                  className="w-full h-12 pl-12 pr-4 rounded-2xl border border-border bg-surface-elevated text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500"
+                  className="h-12 w-full rounded-2xl border border-zinc-800 bg-zinc-900 pl-12 pr-4 text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
             </label>
-            <Button
-              type="button"
-              variant="secondary"
-              className="shrink-0 w-full sm:w-auto"
-              onClick={() => navigate('/map')}
-            >
+            <Button type="button" variant="secondary" className="w-full shrink-0 sm:w-auto" onClick={() => navigate('/map')}>
               <MapPin className="h-4 w-4" />
               Open city map
             </Button>
           </div>
 
           <HealthAdvicePanel aqi={city.aqi} className="mb-10" />
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
-            <StatCard
-              icon={Activity}
-              value={loading ? '—' : sensors.length}
-              label="Active sensors"
-            />
-            <StatCard
-              icon={TrendingUp}
-              value={loading ? '—' : goodLocationsCount}
-              label="Good air locations (PM₂.₅ ≤ 12)"
-              accent="good"
-            />
-            <StatCard
-              icon={MapPin}
-              value="Map"
-              label="Explore all stations on the city map"
-              accent="map"
-              onClick={() => navigate('/map')}
-            />
-          </div>
         </PageSection>
-
-        <AirEducationSections />
 
         <PageSection
           title="Monitoring locations"
           description="Tap a station for charts, history, and health guidance for that area."
-          className="pt-0 border-t border-border"
+          className="border-t border-zinc-800 pt-8"
         >
           {loading ? (
             <LoadingBlock message="Loading sensors…" />
@@ -185,21 +183,16 @@ export function HomePage() {
               description="No readings in the last 24 hours. Check that the backend and InfluxDB are running."
             />
           ) : filteredSensors.length === 0 ? (
-            <EmptyBlock
-              title="No matches"
-              description={`No sensors match "${search}". Try another name or clear the search.`}
-            />
+            <EmptyBlock title="No matches" description={`No sensors match "${search}".`} />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
               {filteredSensors.map((sensor) => (
                 <LocationCard
                   key={sensor.id}
                   sensorId={sensor.id}
                   measurements={sensor.measurements}
                   lastUpdate={sensor.lastUpdate}
-                  onClick={() =>
-                    navigate(`/sensor/${encodeURIComponent(sensor.id)}`)
-                  }
+                  onClick={() => navigate(`/sensor/${encodeURIComponent(sensor.id)}`)}
                 />
               ))}
             </div>
@@ -207,36 +200,41 @@ export function HomePage() {
         </PageSection>
 
         <PageSection
-          title="Open data & API"
-          description="Researchers and developers can pull the same readings that power this dashboard."
-          className="border-t border-border pb-16"
+          title="Trust & transparency"
+          description="How we measure and publish air quality data."
+          className="border-t border-zinc-800 pt-8"
         >
-          <Card className="bg-brand-50/50 border-brand-100">
+          <Card className="border-zinc-800 bg-zinc-900">
             <CardContent className="py-6 sm:py-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                <p className="text-sm text-muted leading-relaxed max-w-2xl">
-                  Sensors publish PM₂.₅, PM₁₀, and weather fields over MQTT into
-                  InfluxDB. The US EPA AQI is computed from the highest PM
-                  sub-index. See the sections above for what each measurement
-                  means, or use the API for your own analysis.
-                </p>
-                <div className="flex flex-wrap gap-3 shrink-0">
-                  <Link to="/map">
-                    <Button variant="secondary" type="button">
-                      City map
-                    </Button>
+              <ul className="space-y-2 text-sm text-zinc-400">
+                <li>AQI is computed using the US EPA method from PM₂.₅ and PM₁₀ sub-indices.</li>
+                <li>Sensors publish readings over MQTT into InfluxDB, typically every few minutes.</li>
+                <li>Public access is rate-limited; approved API keys unlock extended history and higher limits.</li>
+                <li>All admin actions on API keys are audit-logged.</li>
+              </ul>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link to="/api-docs">
+                  <Button variant="secondary" type="button">
+                    <BookOpen className="h-4 w-4" />
+                    API documentation
+                  </Button>
+                </Link>
+                {user && (
+                  <Link to="/api-access">
+                    <Button type="button">Request API access</Button>
                   </Link>
-                  <Link to="/api-docs">
-                    <Button type="button">
-                      <BookOpen className="w-4 h-4" />
-                      API documentation
-                    </Button>
-                  </Link>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </PageSection>
+
+        <details className="mb-16 mt-8 rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-4">
+          <summary className="cursor-pointer text-sm font-semibold text-zinc-200">Learn more about air quality</summary>
+          <div className="mt-4">
+            <AirEducationSections />
+          </div>
+        </details>
       </div>
     </div>
   );

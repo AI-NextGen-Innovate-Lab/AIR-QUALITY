@@ -6,6 +6,16 @@ export declare class UsersController {
     constructor(usersService: UsersService);
     create(createUserDto: CreateUserDto, req: any): Promise<any>;
     findAll(): Promise<any>;
+    findMe(req: {
+        user: {
+            id: number;
+        };
+    }): Promise<any>;
+    updateMe(req: {
+        user: {
+            id: number;
+        };
+    }, updateUserDto: UpdateUserDto): Promise<any>;
     findOne(id: string): Promise<any>;
     update(id: string, updateUserDto: UpdateUserDto, req: any): Promise<any>;
     updateRole(id: string, body: {

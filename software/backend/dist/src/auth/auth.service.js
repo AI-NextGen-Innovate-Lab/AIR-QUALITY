@@ -35,9 +35,6 @@ let AuthService = class AuthService {
                     },
                 });
             }
-            else {
-                console.warn('ActivityLog model not available in Prisma client');
-            }
         }
         catch (error) {
             console.error('Failed to log auth activity:', error);
@@ -67,12 +64,12 @@ let AuthService = class AuthService {
                     role: true,
                 },
             });
-            await this.logAuthActivity(user.id, 'REGISTER', true);
             const access_token = this.jwt.sign({
                 id: user.id,
                 email: user.email,
                 role: user.role,
             });
+            await this.logAuthActivity(user.id, 'REGISTER', true, { email });
             return {
                 user,
                 access_token,
@@ -89,7 +86,7 @@ let AuthService = class AuthService {
             if (error && typeof error === 'object' && 'code' in error) {
                 const prismaError = error;
                 if (prismaError.code === 'P2002') {
-                    throw new ConflictException(`Email already exists`);
+                    throw new ConflictException('Email already exists');
                 }
             }
             throw new BadRequestException(error instanceof Error ? error.message : 'Registration failed');
@@ -101,7 +98,6 @@ let AuthService = class AuthService {
                 where: { email },
             });
             if (!user) {
-                await this.logAuthActivity(0, 'LOGIN', false, { email });
                 throw new UnauthorizedException('Invalid credentials');
             }
             const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -109,13 +105,13 @@ let AuthService = class AuthService {
                 await this.logAuthActivity(user.id, 'LOGIN', false, { email });
                 throw new UnauthorizedException('Invalid credentials');
             }
-            await this.logAuthActivity(user.id, 'LOGIN', true, { email });
             const access_token = this.jwt.sign({
                 id: user.id,
                 email: user.email,
                 role: user.role,
             });
             const { password: _, ...userWithoutPassword } = user;
+            await this.logAuthActivity(user.id, 'LOGIN', true, { email });
             return {
                 user: userWithoutPassword,
                 access_token,

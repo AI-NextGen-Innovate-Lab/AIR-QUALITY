@@ -7,12 +7,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 import { Module } from '@nestjs/common';
 import { InfluxService } from './influx.service.js';
 import { InfluxController } from './influx.controller.js';
+import { ApiKeysModule } from '../api-keys/api-keys.module.js';
+import { AuthModule } from '../auth/auth.module.js';
+import { TieredAccessGuard } from '../access/tiered-access.guard.js';
 let InfluxModule = class InfluxModule {
 };
 InfluxModule = __decorate([
     Module({
-        providers: [InfluxService],
-        controllers: [InfluxController]
+        imports: [ApiKeysModule, AuthModule],
+        providers: [InfluxService, TieredAccessGuard],
+        controllers: [InfluxController],
     })
 ], InfluxModule);
 export { InfluxModule };

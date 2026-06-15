@@ -28,6 +28,12 @@ let UsersController = class UsersController {
     findAll() {
         return this.usersService.findAll();
     }
+    findMe(req) {
+        return this.usersService.findOne(req.user.id);
+    }
+    updateMe(req, updateUserDto) {
+        return this.usersService.updateMe(req.user.id, updateUserDto);
+    }
     findOne(id) {
         return this.usersService.findOne(+id);
     }
@@ -58,6 +64,21 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findAll", null);
+__decorate([
+    Get('me'),
+    __param(0, Request()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "findMe", null);
+__decorate([
+    Patch('me'),
+    __param(0, Request()),
+    __param(1, Body()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, UpdateUserDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "updateMe", null);
 __decorate([
     Get(':id'),
     Roles('ADMIN', 'OWNER'),

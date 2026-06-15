@@ -74,6 +74,8 @@ let UsersService = class UsersService {
                     email: true,
                     name: true,
                     role: true,
+                    createdAt: true,
+                    updatedAt: true,
                 },
             });
             if (!user) {
@@ -86,6 +88,40 @@ let UsersService = class UsersService {
                 throw error;
             }
             throw new BadRequestException(error instanceof Error ? error.message : 'Failed to fetch user');
+        }
+    }
+    async updateMe(id, updateUserDto) {
+        try {
+            const user = await this.prisma.user.findUnique({
+                where: { id },
+            });
+            if (!user) {
+                throw new NotFoundException(`User with ID ${id} not found`);
+            }
+            const updateData = {};
+            if (updateUserDto.name)
+                updateData.name = updateUserDto.name;
+            if (!Object.keys(updateData).length) {
+                return this.findOne(id);
+            }
+            return await this.prisma.user.update({
+                where: { id },
+                data: updateData,
+                select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    role: true,
+                    createdAt: true,
+                    updatedAt: true,
+                },
+            });
+        }
+        catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new BadRequestException(error instanceof Error ? error.message : 'Failed to update profile');
         }
     }
     async update(id, updateUserDto, currentUserRole) {
