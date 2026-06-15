@@ -49,41 +49,41 @@ export function AqiTrendChart({ readings = [], loading }) {
   const data = useMemo(() => bucketHourlyAqi(readings), [readings]);
 
   return (
-    <Card className="border-zinc-800 bg-zinc-900">
+    <Card className="border-border bg-surface-elevated">
       <CardContent className="p-4 sm:p-6">
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-zinc-100">City AQI trend</h3>
-          <p className="text-sm text-zinc-500">Hourly average across all sensors (last 24h)</p>
+          <h3 className="text-lg font-semibold text-foreground">City AQI trend</h3>
+          <p className="text-sm text-muted">Hourly average across all sensors (last 24h)</p>
         </div>
         {loading ? (
-          <div className="flex h-[240px] items-center justify-center text-zinc-500">Loading chart…</div>
+          <div className="flex h-[240px] items-center justify-center text-muted">Loading chart…</div>
         ) : data.length === 0 ? (
-          <div className="flex h-[240px] items-center justify-center text-zinc-500">No trend data yet</div>
+          <div className="flex h-[240px] items-center justify-center text-muted">No trend data yet</div>
         ) : (
           <ResponsiveContainer width="100%" height={240}>
             <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="aqiGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#14b8a6" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
+              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
               <Tooltip
                 contentStyle={{
-                  background: '#18181b',
-                  border: '1px solid #3f3f46',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
                   borderRadius: '12px',
-                  color: '#fafafa',
+                  color: '#0f172a',
                 }}
                 formatter={(value) => [`AQI ${value}`, 'Index']}
               />
               <Area
                 type="monotone"
                 dataKey="aqi"
-                stroke="#10b981"
+                stroke="#0d9488"
                 strokeWidth={2}
                 fill="url(#aqiGradient)"
               />

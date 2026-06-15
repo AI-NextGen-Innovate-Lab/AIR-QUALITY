@@ -33,7 +33,7 @@ function pill(text, variant = 'neutral') {
       ? 'bg-aqi-good-soft text-aqi-good'
       : variant === 'warn'
         ? 'bg-aqi-moderate-soft text-aqi-moderate'
-        : 'bg-zinc-800 text-zinc-400 border border-zinc-700';
+        : 'bg-surface text-muted border border-border';
   return (
     <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', cls)}>
       {text}
@@ -123,7 +123,7 @@ export default function AdminPanel() {
 
       {readError && <ErrorBlock message={`Readings: ${readError}`} className="mb-6" />}
 
-      <div className="mb-4 flex flex-wrap gap-2 border-b border-zinc-800 pb-3">
+      <div className="mb-4 flex flex-wrap gap-2 border-b border-border pb-3">
         {[
           { id: 'overview', label: 'Overview' },
           { id: 'requests', label: 'API Requests' },
@@ -139,8 +139,8 @@ export default function AdminPanel() {
 
       {tab === 'overview' && (
         <div className={panel()}>
-          <h3 className="mb-3 text-lg font-semibold text-zinc-100">Influx snapshot</h3>
-          <ul className="list-inside list-disc space-y-2 text-sm text-zinc-400">
+          <h3 className="mb-3 text-lg font-semibold text-foreground">Influx snapshot</h3>
+          <ul className="list-inside list-disc space-y-2 text-sm text-muted">
             <li>API health: {healthQuery.data?.ok ? 'reachable' : 'unreachable or error'}</li>
             <li>Server time: {healthQuery.data?.time || '—'}</li>
             <li>Topics with data in the last 24h: {sensorsGrouped.length}</li>
@@ -151,21 +151,21 @@ export default function AdminPanel() {
 
       {tab === 'requests' && (
         <div className={panel()}>
-          <h3 className="mb-4 text-lg font-semibold text-zinc-100">Pending API requests</h3>
+          <h3 className="mb-4 text-lg font-semibold text-foreground">Pending API requests</h3>
           {pendingQuery.isLoading ? (
-            <p className="text-sm text-zinc-500">Loading…</p>
+            <p className="text-sm text-muted">Loading…</p>
           ) : !pendingQuery.data?.length ? (
-            <p className="py-8 text-center text-zinc-500">No pending requests</p>
+            <p className="py-8 text-center text-muted">No pending requests</p>
           ) : (
             <div className="space-y-4">
               {pendingQuery.data.map((req) => (
-                <div key={req.id} className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+                <div key={req.id} className="rounded-xl border border-border bg-surface-elevated p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium text-zinc-100">{req.user?.name}</p>
-                      <p className="text-xs text-zinc-500">{req.user?.email}</p>
-                      <p className="mt-2 text-sm text-zinc-300">{req.purpose}</p>
-                      <p className="mt-1 text-xs text-zinc-600">
+                      <p className="font-medium text-foreground">{req.user?.name}</p>
+                      <p className="text-xs text-muted">{req.user?.email}</p>
+                      <p className="mt-2 text-sm text-foreground">{req.purpose}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
                         Requested {new Date(req.createdAt).toLocaleString()}
                       </p>
                     </div>
@@ -199,23 +199,23 @@ export default function AdminPanel() {
 
       {tab === 'users' && (
         <div className={panel()}>
-          <h3 className="mb-6 text-lg font-semibold text-zinc-100">User management</h3>
+          <h3 className="mb-6 text-lg font-semibold text-foreground">User management</h3>
           <UserManagement />
         </div>
       )}
 
       {tab === 'api' && (
         <div className={panel()}>
-          <h3 className="mb-4 text-lg font-semibold text-zinc-100">API keys</h3>
+          <h3 className="mb-4 text-lg font-semibold text-foreground">API keys</h3>
           {keysQuery.isLoading ? (
-            <p className="text-sm text-zinc-500">Loading…</p>
+            <p className="text-sm text-muted">Loading…</p>
           ) : !keysQuery.data?.length ? (
-            <p className="py-8 text-center text-zinc-500">No active API keys</p>
+            <p className="py-8 text-center text-muted">No active API keys</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-800 text-zinc-500">
+                  <tr className="border-b border-border text-muted">
                     <th className="py-2 pr-4">User</th>
                     <th className="py-2 pr-4">Prefix</th>
                     <th className="py-2 pr-4">Status</th>
@@ -226,16 +226,16 @@ export default function AdminPanel() {
                 </thead>
                 <tbody>
                   {keysQuery.data.map((key) => (
-                    <tr key={key.id} className="border-b border-zinc-800/50">
-                      <td className="py-3 pr-4 text-zinc-200">{key.user?.email}</td>
-                      <td className="py-3 pr-4 font-mono text-zinc-400">{key.keyPrefix}…</td>
+                    <tr key={key.id} className="border-b border-border/50">
+                      <td className="py-3 pr-4 text-foreground">{key.user?.email}</td>
+                      <td className="py-3 pr-4 font-mono text-muted">{key.keyPrefix}…</td>
                       <td className="py-3 pr-4">
                         <Badge>{key.status}</Badge>
                       </td>
-                      <td className="py-3 pr-4 text-zinc-500">
+                      <td className="py-3 pr-4 text-muted">
                         {new Date(key.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="py-3 pr-4 text-zinc-500">
+                      <td className="py-3 pr-4 text-muted">
                         {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : '—'}
                       </td>
                       <td className="py-3">
@@ -263,37 +263,37 @@ export default function AdminPanel() {
       {tab === 'system' && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className={panel()}>
-            <h3 className="mb-4 text-lg font-semibold text-zinc-100">Status</h3>
+            <h3 className="mb-4 text-lg font-semibold text-foreground">Status</h3>
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-zinc-500">HTTP API</span>
+                <span className="text-muted">HTTP API</span>
                 {pill(healthQuery.data?.ok ? 'Online' : 'Unknown', healthQuery.data?.ok ? 'ok' : 'warn')}
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-zinc-500">Readings query</span>
+                <span className="text-muted">Readings query</span>
                 {pill(readError ? 'Error' : 'OK', readError ? 'warn' : 'ok')}
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-zinc-500">InfluxDB</span>
+                <span className="text-muted">InfluxDB</span>
                 {pill(readError ? 'Check logs' : 'Responding', readError ? 'warn' : 'ok')}
               </div>
             </div>
           </div>
 
           <div className={panel()}>
-            <h3 className="mb-4 text-lg font-semibold text-zinc-100">Activity</h3>
-            <div className="space-y-3 text-sm text-zinc-500">
+            <h3 className="mb-4 text-lg font-semibold text-foreground">Activity</h3>
+            <div className="space-y-3 text-sm text-muted">
               <div className="flex gap-3">
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
                 <div>
-                  <div className="text-zinc-200">{readingCount} raw points in admin sample</div>
-                  <div className="text-xs text-zinc-600">Cached via TanStack Query</div>
+                  <div className="text-foreground">{readingCount} raw points in admin sample</div>
+                  <div className="text-xs text-muted-foreground">Cached via TanStack Query</div>
                 </div>
               </div>
               <div className="flex gap-3">
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
                 <div>
-                  <div className="text-zinc-200">{sensorsGrouped.length} topics in rolling window</div>
+                  <div className="text-foreground">{sensorsGrouped.length} topics in rolling window</div>
                 </div>
               </div>
             </div>

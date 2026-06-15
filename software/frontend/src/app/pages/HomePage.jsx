@@ -55,10 +55,10 @@ function RoleCtaBanner({ user, navigate }) {
         : { label: 'Open Analytics Dashboard', path: '/user-dashboard' };
 
   return (
-    <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-brand-100 bg-brand-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className="text-sm font-medium text-zinc-100">Signed in as {user.name}</p>
-        <p className="text-xs text-zinc-500">Access your personalized dashboard and API tools.</p>
+        <p className="text-sm font-medium text-foreground">Signed in as {user.name}</p>
+        <p className="text-xs text-muted">Access your personalized dashboard and API tools.</p>
       </div>
       <Button onClick={() => navigate(config.path)}>{config.label}</Button>
     </div>
@@ -149,13 +149,13 @@ export function HomePage() {
             <label className="block flex-1">
               <span className="sr-only">Search monitoring locations</span>
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500" />
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by sensor name or topic…"
-                  className="h-12 w-full rounded-2xl border border-zinc-800 bg-zinc-900 pl-12 pr-4 text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="h-12 w-full rounded-2xl border border-border bg-surface-elevated pl-12 pr-4 text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
                 />
               </div>
             </label>
@@ -171,7 +171,7 @@ export function HomePage() {
         <PageSection
           title="Monitoring locations"
           description="Tap a station for charts, history, and health guidance for that area."
-          className="border-t border-zinc-800 pt-8"
+          className="border-t border-border pt-8"
         >
           {loading ? (
             <LoadingBlock message="Loading sensors…" />
@@ -202,11 +202,11 @@ export function HomePage() {
         <PageSection
           title="Trust & transparency"
           description="How we measure and publish air quality data."
-          className="border-t border-zinc-800 pt-8"
+          className="border-t border-border pt-8"
         >
-          <Card className="border-zinc-800 bg-zinc-900">
+          <Card className="border-border bg-surface-elevated">
             <CardContent className="py-6 sm:py-8">
-              <ul className="space-y-2 text-sm text-zinc-400">
+              <ul className="space-y-2 text-sm text-muted">
                 <li>AQI is computed using the US EPA method from PM₂.₅ and PM₁₀ sub-indices.</li>
                 <li>Sensors publish readings over MQTT into InfluxDB, typically every few minutes.</li>
                 <li>Public access is rate-limited; approved API keys unlock extended history and higher limits.</li>
@@ -229,8 +229,8 @@ export function HomePage() {
           </Card>
         </PageSection>
 
-        <details className="mb-16 mt-8 rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-4">
-          <summary className="cursor-pointer text-sm font-semibold text-zinc-200">Learn more about air quality</summary>
+        <details className="mb-16 mt-8 rounded-2xl border border-border bg-surface-elevated px-5 py-4">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">Learn more about air quality</summary>
           <div className="mt-4">
             <AirEducationSections />
           </div>
