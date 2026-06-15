@@ -134,7 +134,54 @@ export default function APIDocumentation() {
         </Card>
       </div>
 
-      <PageSection title="Quick start" className="py-0">
+      <PageSection title="Access tiers" className="py-0">
+        <div className={panel()}>
+          <p className="text-sm text-muted mb-4">
+            Readings use tiered limits. Request API access from your profile or{' '}
+            <Link to="/api-access" className="text-emerald-400 hover:underline">API Access</Link> page
+            after signing in.
+          </p>
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-border text-muted">
+                <th className="py-2 pr-4">Tier</th>
+                <th className="py-2 pr-4">Auth</th>
+                <th className="py-2 pr-4">Rate</th>
+                <th className="py-2 pr-4">History</th>
+                <th className="py-2">Row limit</th>
+              </tr>
+            </thead>
+            <tbody className="text-muted">
+              <tr className="border-b border-border/50">
+                <td className="py-2 pr-4 text-foreground">Public</td>
+                <td className="py-2 pr-4">None</td>
+                <td className="py-2 pr-4">30/min</td>
+                <td className="py-2 pr-4">24h</td>
+                <td className="py-2">100</td>
+              </tr>
+              <tr className="border-b border-border/50">
+                <td className="py-2 pr-4 text-foreground">Authenticated</td>
+                <td className="py-2 pr-4">Bearer JWT</td>
+                <td className="py-2 pr-4">60/min</td>
+                <td className="py-2 pr-4">7d</td>
+                <td className="py-2">500</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-4 text-foreground">API key</td>
+                <td className="py-2 pr-4"><code>X-API-Key</code></td>
+                <td className="py-2 pr-4">300/min</td>
+                <td className="py-2 pr-4">30d</td>
+                <td className="py-2">5,000</td>
+              </tr>
+            </tbody>
+          </table>
+          <pre className="mt-4 rounded-xl bg-surface border border-border p-3 text-xs overflow-x-auto">
+{`curl -H "X-API-Key: aqm_your_key_here" "${base}/readings?hours=168&limit=500"`}
+          </pre>
+        </div>
+      </PageSection>
+
+      <PageSection title="Quick start" className="py-0 border-t border-border">
         <div className={panel()}>
           <ol className="list-decimal list-inside space-y-3 text-sm text-muted">
             <li>
@@ -166,7 +213,8 @@ curl -X POST "${base}/auth/login" \\
       <PageSection title="Readings & health" className="border-t border-border py-0">
         <div className={panel()}>
           <p className="text-sm text-muted mb-4">
-            Public endpoints — no authentication required. Data is normalized from InfluxDB
+            Tiered access — public, JWT, or <code className="text-foreground">X-API-Key</code>.
+            Limits are enforced server-side. Data is normalized from InfluxDB
             (MQTT topics as sensor <code className="text-foreground">id</code>).
           </p>
           <Endpoint

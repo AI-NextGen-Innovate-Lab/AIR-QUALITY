@@ -1,19 +1,22 @@
 import { Outlet } from 'react-router-dom';
-import Header from '@/app/components/Header';
+import { SidebarProvider } from '@/app/context/SidebarContext';
+import Sidebar from '@/app/components/layout/Sidebar';
+import TopBar from '@/app/components/layout/TopBar';
 import { Footer } from '@/app/components/Footer';
 
-/**
- * Shared chrome: header, scrollable main, footer.
- * All primary routes render inside this layout.
- */
 export default function AppShell() {
   return (
-    <div className="min-h-screen flex flex-col bg-surface text-foreground">
-      <Header />
-      <main className="flex-1 w-full">
-        <Outlet />
-      </main>
-      <Footer />
-    </div>
+    <SidebarProvider>
+      <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar />
+          <main className="flex-1 w-full">
+            <Outlet />
+          </main>
+          <Footer />
+        </div>
+      </div>
+    </SidebarProvider>
   );
 }

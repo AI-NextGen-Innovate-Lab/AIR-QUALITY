@@ -1,17 +1,30 @@
-import React, { useEffect, useState } from 'react';
-import { Users, Activity, AlertCircle, Settings } from 'lucide-react';
-import { fetchHealth, fetchReadings } from '@/app/lib/api';
+import React from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Users, Activity, AlertCircle, Settings, KeyRound } from 'lucide-react';
+import { toast } from 'sonner';
+import { fetchHealth } from '@/app/lib/api';
+import { useReadingsQuery } from '@/app/hooks/useReadingsQuery';
 import { groupReadingsBySensor } from '@/app/lib/sensorData';
 import {
   averageAqiFromSensors,
   totalReadingCount,
 } from '@/app/lib/admin/adminMetrics';
+import {
+  fetchApiKeyRequests,
+  fetchAllApiKeys,
+  approveApiKeyRequest,
+  rejectApiKeyRequest,
+  revokeApiKey,
+} from '@/app/lib/api/apiKeys';
 import { DashboardPage } from '@/app/components/layout/DashboardPage';
 import { PageHeader } from '@/app/components/layout/PageHeader';
 import { StatCard } from '@/app/components/data/StatCard';
 import { ErrorBlock } from '@/app/components/data/DataState';
 import { panel, tabBtn } from '@/app/lib/dashboardStyles';
 import { cn } from '@/app/lib/utils/cn';
+import { Button } from '@/app/components/ui/button';
+import { Badge } from '@/app/components/ui/badge';
 import UserManagement from './UserManagement';
 
 function pill(text, variant = 'neutral') {
@@ -20,99 +33,105 @@ function pill(text, variant = 'neutral') {
       ? 'bg-aqi-good-soft text-aqi-good'
       : variant === 'warn'
         ? 'bg-aqi-moderate-soft text-aqi-moderate'
-        : 'bg-surface text-muted border border-border';
+        : 'bg-zinc-800 text-zinc-400 border border-zinc-700';
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-        cls
-      )}
-    >
+    <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', cls)}>
       {text}
     </span>
   );
 }
 
 export default function AdminPanel() {
-  const [tab, setTab] = useState('overview');
-  const [health, setHealth] = useState(null);
-  const [readError, setReadError] = useState(null);
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'overview';
+  const setTab = (id) => setSearchParams({ tab: id });
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    Promise.all([
-      fetchHealth().catch(() => null),
-      fetchReadings({ limit: 3000, page: 1, hours: 24 }).catch((e) => {
-        if (!cancelled) setReadError(e.message);
-        return { data: [] };
-      }),
-    ]).then(([h, json]) => {
-      if (cancelled) return;
-      setHealth(h);
-      setRows(json.data || []);
-      setLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const healthQuery = useQuery({
+    queryKey: ['health'],
+    queryFn: fetchHealth,
+    staleTime: 30_000,
+  });
+
+  const { loading: readingsLoading, error: readError, data: rows } = useReadingsQuery({
+    limit: 3000,
+    page: 1,
+    hours: 24,
+  });
+
+  const pendingQuery = useQuery({
+    queryKey: ['api-key-requests', 'pending'],
+    queryFn: () => fetchApiKeyRequests('PENDING'),
+  });
+
+  const keysQuery = useQuery({
+    queryKey: ['api-keys', 'all'],
+    queryFn: () => fetchAllApiKeys('ACTIVE'),
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: approveApiKeyRequest,
+    onSuccess: (data) => {
+      toast.success('Request approved. Copy the key from the response — it is shown once.');
+      if (data?.key) {
+        window.prompt('Copy this API key now (shown once):', data.key);
+      }
+      queryClient.invalidateQueries({ queryKey: ['api-key-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, note }) => rejectApiKeyRequest(id, note),
+    onSuccess: () => {
+      toast.success('Request rejected');
+      queryClient.invalidateQueries({ queryKey: ['api-key-requests'] });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: revokeApiKey,
+    onSuccess: () => {
+      toast.success('API key revoked');
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const sensorsGrouped = groupReadingsBySensor(rows);
   const cityAqi = averageAqiFromSensors(sensorsGrouped);
   const readingCount = totalReadingCount(rows);
+  const pendingCount = pendingQuery.data?.length ?? 0;
+  const activeKeyCount = keysQuery.data?.length ?? 0;
 
   return (
     <DashboardPage>
       <PageHeader
         badge="Administration"
-        title="Admin panel"
-        description="System health, user management, and Influx snapshot for the last 24 hours."
+        title="Operations center"
+        description="System health, API access, user management, and sensor snapshot."
       />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={Activity}
-          value={loading ? '—' : sensorsGrouped.length}
-          label="Topics (24h)"
-        />
-        <StatCard
-          icon={Users}
-          value={loading ? '—' : readingCount}
-          label="Rows loaded"
-        />
-        <StatCard
-          icon={AlertCircle}
-          value="—"
-          label="Pending requests"
-        />
-        <StatCard
-          icon={Settings}
-          value={loading ? '—' : Math.round(cityAqi)}
-          label="Avg AQI"
-        />
+        <StatCard icon={Users} value={readingsLoading ? '—' : sensorsGrouped.length} label="Topics (24h)" />
+        <StatCard icon={AlertCircle} value={pendingQuery.isLoading ? '—' : pendingCount} label="Pending requests" />
+        <StatCard icon={KeyRound} value={keysQuery.isLoading ? '—' : activeKeyCount} label="Active API keys" />
+        <StatCard icon={Settings} value={readingsLoading ? '—' : Math.round(cityAqi)} label="Avg AQI" />
       </div>
 
-      {readError && (
-        <ErrorBlock message={`Readings: ${readError}`} className="mb-6" />
-      )}
+      {readError && <ErrorBlock message={`Readings: ${readError}`} className="mb-6" />}
 
-      <div className="mb-4 flex flex-wrap gap-2 border-b border-border pb-3">
+      <div className="mb-4 flex flex-wrap gap-2 border-b border-zinc-800 pb-3">
         {[
           { id: 'overview', label: 'Overview' },
-          { id: 'requests', label: 'Pending requests' },
+          { id: 'requests', label: 'API Requests' },
           { id: 'users', label: 'Users' },
-          { id: 'api', label: 'API keys' },
+          { id: 'api', label: 'API Keys' },
           { id: 'system', label: 'System' },
         ].map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={tabBtn(tab === t.id)}
-            onClick={() => setTab(t.id)}
-          >
+          <button key={t.id} type="button" className={tabBtn(tab === t.id)} onClick={() => setTab(t.id)}>
             {t.label}
           </button>
         ))}
@@ -120,12 +139,10 @@ export default function AdminPanel() {
 
       {tab === 'overview' && (
         <div className={panel()}>
-          <h3 className="mb-3 text-lg font-semibold text-foreground">
-            Influx snapshot
-          </h3>
-          <ul className="list-inside list-disc space-y-2 text-sm text-muted">
-            <li>API health: {health?.ok ? 'reachable' : 'unreachable or error'}</li>
-            <li>Server time: {health?.time || '—'}</li>
+          <h3 className="mb-3 text-lg font-semibold text-zinc-100">Influx snapshot</h3>
+          <ul className="list-inside list-disc space-y-2 text-sm text-zinc-400">
+            <li>API health: {healthQuery.data?.ok ? 'reachable' : 'unreachable or error'}</li>
+            <li>Server time: {healthQuery.data?.time || '—'}</li>
             <li>Topics with data in the last 24h: {sensorsGrouped.length}</li>
             <li>Rows in this admin sample: {readingCount}</li>
           </ul>
@@ -134,79 +151,149 @@ export default function AdminPanel() {
 
       {tab === 'requests' && (
         <div className={panel()}>
-          <h3 className="mb-2 text-lg font-semibold text-foreground">
-            Private sensor requests
-          </h3>
-          <p className="mb-4 text-sm text-muted">
-            There is no POST/approval API yet. Wire this tab to your user database
-            when available.
-          </p>
-          <div className="py-12 text-center text-muted">No pending requests</div>
+          <h3 className="mb-4 text-lg font-semibold text-zinc-100">Pending API requests</h3>
+          {pendingQuery.isLoading ? (
+            <p className="text-sm text-zinc-500">Loading…</p>
+          ) : !pendingQuery.data?.length ? (
+            <p className="py-8 text-center text-zinc-500">No pending requests</p>
+          ) : (
+            <div className="space-y-4">
+              {pendingQuery.data.map((req) => (
+                <div key={req.id} className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-zinc-100">{req.user?.name}</p>
+                      <p className="text-xs text-zinc-500">{req.user?.email}</p>
+                      <p className="mt-2 text-sm text-zinc-300">{req.purpose}</p>
+                      <p className="mt-1 text-xs text-zinc-600">
+                        Requested {new Date(req.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => approveMutation.mutate(req.id)}
+                        disabled={approveMutation.isPending}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          const note = window.prompt('Rejection note (optional):') ?? '';
+                          rejectMutation.mutate({ id: req.id, note });
+                        }}
+                        disabled={rejectMutation.isPending}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {tab === 'users' && (
         <div className={panel()}>
-          <h3 className="mb-6 text-lg font-semibold text-foreground">
-            User management
-          </h3>
+          <h3 className="mb-6 text-lg font-semibold text-zinc-100">User management</h3>
           <UserManagement />
         </div>
       )}
 
       {tab === 'api' && (
         <div className={panel()}>
-          <h3 className="mb-2 text-lg font-semibold text-foreground">API keys</h3>
-          <p className="mb-4 text-sm text-muted">
-            Key management is not implemented on this server. Use Influx tokens and
-            env vars on the backend.
-          </p>
-          <div className="py-12 text-center text-muted">No keys exposed here</div>
+          <h3 className="mb-4 text-lg font-semibold text-zinc-100">API keys</h3>
+          {keysQuery.isLoading ? (
+            <p className="text-sm text-zinc-500">Loading…</p>
+          ) : !keysQuery.data?.length ? (
+            <p className="py-8 text-center text-zinc-500">No active API keys</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-zinc-500">
+                    <th className="py-2 pr-4">User</th>
+                    <th className="py-2 pr-4">Prefix</th>
+                    <th className="py-2 pr-4">Status</th>
+                    <th className="py-2 pr-4">Created</th>
+                    <th className="py-2 pr-4">Last used</th>
+                    <th className="py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {keysQuery.data.map((key) => (
+                    <tr key={key.id} className="border-b border-zinc-800/50">
+                      <td className="py-3 pr-4 text-zinc-200">{key.user?.email}</td>
+                      <td className="py-3 pr-4 font-mono text-zinc-400">{key.keyPrefix}…</td>
+                      <td className="py-3 pr-4">
+                        <Badge>{key.status}</Badge>
+                      </td>
+                      <td className="py-3 pr-4 text-zinc-500">
+                        {new Date(key.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 pr-4 text-zinc-500">
+                        {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="py-3">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            if (window.confirm('Revoke this API key?')) {
+                              revokeMutation.mutate(key.id);
+                            }
+                          }}
+                        >
+                          Revoke
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
       {tab === 'system' && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className={panel()}>
-            <h3 className="mb-4 text-lg font-semibold text-foreground">Status</h3>
+            <h3 className="mb-4 text-lg font-semibold text-zinc-100">Status</h3>
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted">HTTP API</span>
-                {pill(health?.ok ? 'Online' : 'Unknown', health?.ok ? 'ok' : 'warn')}
+                <span className="text-zinc-500">HTTP API</span>
+                {pill(healthQuery.data?.ok ? 'Online' : 'Unknown', healthQuery.data?.ok ? 'ok' : 'warn')}
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted">Readings query</span>
+                <span className="text-zinc-500">Readings query</span>
                 {pill(readError ? 'Error' : 'OK', readError ? 'warn' : 'ok')}
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted">InfluxDB</span>
-                {pill(
-                  readError ? 'Check logs' : 'Responding',
-                  readError ? 'warn' : 'ok'
-                )}
+                <span className="text-zinc-500">InfluxDB</span>
+                {pill(readError ? 'Check logs' : 'Responding', readError ? 'warn' : 'ok')}
               </div>
             </div>
           </div>
 
           <div className={panel()}>
-            <h3 className="mb-4 text-lg font-semibold text-foreground">Activity</h3>
-            <div className="space-y-3 text-sm text-muted">
+            <h3 className="mb-4 text-lg font-semibold text-zinc-100">Activity</h3>
+            <div className="space-y-3 text-sm text-zinc-500">
               <div className="flex gap-3">
-                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-500" />
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
                 <div>
-                  <div className="text-foreground">
-                    Loaded {readingCount} raw points for admin overview
-                  </div>
-                  <div className="text-xs text-muted">Last refresh on mount</div>
+                  <div className="text-zinc-200">{readingCount} raw points in admin sample</div>
+                  <div className="text-xs text-zinc-600">Cached via TanStack Query</div>
                 </div>
               </div>
               <div className="flex gap-3">
-                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-aqi-good" />
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
                 <div>
-                  <div className="text-foreground">
-                    {sensorsGrouped.length} topics seen in the rolling window
-                  </div>
-                  <div className="text-xs text-muted">Based on grouped readings</div>
+                  <div className="text-zinc-200">{sensorsGrouped.length} topics in rolling window</div>
                 </div>
               </div>
             </div>

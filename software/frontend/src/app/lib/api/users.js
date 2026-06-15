@@ -1,23 +1,17 @@
-import { apiGet, apiPost, apiPatch, apiDelete } from "./client";
+import { apiGet, apiPost, apiPatch, apiDelete } from './client.js';
 
-const API_BASE = "/users";
+const API_BASE = '/users';
 
 export const getUsersApi = {
-  /**
-   * Get all users (admin only)
-   */
   async getAllUsers() {
     try {
       return await apiGet(API_BASE);
     } catch (error) {
-      console.error("Failed to fetch users:", error);
+      console.error('Failed to fetch users:', error);
       throw error;
     }
   },
 
-  /**
-   * Get a single user by ID (admin only)
-   */
   async getUserById(id) {
     try {
       return await apiGet(`${API_BASE}/${id}`);
@@ -27,21 +21,15 @@ export const getUsersApi = {
     }
   },
 
-  /**
-   * Create a new user (admin only)
-   */
   async createUser(userData) {
     try {
       return await apiPost(API_BASE, userData);
     } catch (error) {
-      console.error("Failed to create user:", error);
+      console.error('Failed to create user:', error);
       throw error;
     }
   },
 
-  /**
-   * Update user details (admin only)
-   */
   async updateUser(id, userData) {
     try {
       return await apiPatch(`${API_BASE}/${id}`, userData);
@@ -51,9 +39,6 @@ export const getUsersApi = {
     }
   },
 
-  /**
-   * Update user role (admin only)
-   */
   async updateUserRole(id, role) {
     try {
       return await apiPatch(`${API_BASE}/${id}/role`, { role });
@@ -63,9 +48,6 @@ export const getUsersApi = {
     }
   },
 
-  /**
-   * Delete a user (admin only)
-   */
   async deleteUser(id) {
     try {
       return await apiDelete(`${API_BASE}/${id}`);
@@ -75,3 +57,24 @@ export const getUsersApi = {
     }
   },
 };
+
+/** @deprecated Prefer getUsersApi — kept for api/index.js re-exports */
+export async function fetchUsers() {
+  return getUsersApi.getAllUsers();
+}
+
+export async function fetchUser(id) {
+  return getUsersApi.getUserById(id);
+}
+
+export async function createUser(userData) {
+  return getUsersApi.createUser(userData);
+}
+
+export async function updateUser(id, userData) {
+  return getUsersApi.updateUser(id, userData);
+}
+
+export async function deleteUser(id) {
+  return getUsersApi.deleteUser(id);
+}

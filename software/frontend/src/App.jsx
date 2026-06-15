@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 
 import { AuthProvider } from './app/context/AuthContext';
 import AppShell from './app/components/layout/AppShell';
@@ -15,6 +16,7 @@ import SensorStatus from './app/pages/SensorStatus';
 import UserProfile from './app/pages/UserProfile';
 import LocationDetails from './app/pages/LocationDetails';
 import APIDocumentation from './app/pages/APIDocumentation';
+import ApiAccess from './app/pages/ApiAccess';
 
 import ProtectedRoutes from './app/routes/ProtectedRoutes';
 import RoleRedirect from './app/routes/RoleRedirect';
@@ -23,6 +25,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Toaster position="top-right" richColors closeButton />
         <Routes>
           <Route element={<AppShell />}>
             {/* Public */}
@@ -51,6 +54,15 @@ function App() {
             />
 
             <Route
+              path="/api-access"
+              element={
+                <ProtectedRoutes roles={['user', 'admin', 'owner']}>
+                  <ApiAccess />
+                </ProtectedRoutes>
+              }
+            />
+
+            <Route
               path="/download"
               element={
                 <ProtectedRoutes roles={['user', 'admin', 'owner']}>
@@ -62,7 +74,7 @@ function App() {
             <Route
               path="/admin"
               element={
-                <ProtectedRoutes roles={['admin']}>
+                <ProtectedRoutes roles={['admin', 'owner']}>
                   <AdminPanel />
                 </ProtectedRoutes>
               }
@@ -71,7 +83,7 @@ function App() {
             <Route
               path="/sensor-status"
               element={
-                <ProtectedRoutes roles={['admin']}>
+                <ProtectedRoutes roles={['admin', 'owner']}>
                   <SensorStatus />
                 </ProtectedRoutes>
               }

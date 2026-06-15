@@ -1,4 +1,4 @@
-import { Transform } from "class-transformer";
+import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsString,
@@ -7,7 +7,7 @@ import {
   MinLength,
   IsEnum,
   IsOptional,
-} from "class-validator";
+} from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -16,7 +16,7 @@ export class UpdateUserDto {
   @MinLength(3)
   @MaxLength(50)
   @Matches(/^[a-zA-Z\s'-]+$/, {
-    message: "Name can only contain letters, spaces, hyphens, and apostrophes",
+    message: 'Name can only contain letters, spaces, hyphens, and apostrophes',
   })
   name?: string;
 
@@ -31,11 +31,11 @@ export class UpdateUserDto {
   @MaxLength(100)
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/, {
     message:
-      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
   })
   password?: string;
 
   @IsOptional()
-  @IsEnum(["USER", "ADMIN", "OWNER"])
+  @IsEnum(['USER', 'ADMIN', 'OWNER'])
   role?: string;
 }

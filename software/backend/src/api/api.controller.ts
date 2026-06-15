@@ -3,7 +3,7 @@ import { ApiService } from './api.service.js';
 import { CreateApiDto } from './dto/create-api.dto.js';
 import { UpdateApiDto } from './dto/update-api.dto.js';
 
-@Controller('api')
+@Controller('status')
 export class ApiController {
   constructor(private readonly apiService: ApiService) {}
 

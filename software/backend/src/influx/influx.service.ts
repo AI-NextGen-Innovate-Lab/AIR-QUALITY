@@ -1,12 +1,22 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InfluxDB } from '@influxdata/influxdb-client';
+import {
+  AccessTier,
+  ClampedReadingsQuery,
+  TIER_LIMITS,
+} from '../access/tiered-access.types.js';
 
 @Injectable()
 export class InfluxService {
   private influxDB: InfluxDB;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {
     const rawUrl =
       this.configService.get<string>('INFLUX_URL') ?? this.configService.get<string>('DB_URL');
     const token =
@@ -83,12 +93,28 @@ export class InfluxService {
     };
   }
 
-  async getReadings(query: {
-    limit?: string;
-    page?: string;
-    hours?: string;
-    sensorId?: string;
-  }) {
+  async getReadings(query: ClampedReadingsQuery, tier: AccessTier = 'PUBLIC') {
+    const cacheKey = `readings:${tier}:${query.hours}:${query.sensorId ?? 'all'}:${query.page}:${query.limit}`;
+    const cached = await this.cacheManager.get<{
+      data: Array<{
+        id: string;
+        measurement: string;
+        value: number | string | null;
+        time: unknown;
+      }>;
+      pagination: {
+        limit: number;
+        page: number;
+        hours: number;
+        count: number;
+        tier: AccessTier;
+      };
+    }>(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
     const org = this.configService.get<string>('INFLUX_ORG') ?? this.configService.get<string>('DB_ORG');
     const bucket =
       this.configService.get<string>('INFLUX_BUCKET') ?? this.configService.get<string>('DB_BUCKET');
@@ -101,12 +127,9 @@ export class InfluxService {
 
     const queryApi = this.influxDB.getQueryApi(org);
 
-    const limitRaw = Number.parseInt(query.limit ?? '500', 10);
-    const pageRaw = Number.parseInt(query.page ?? '1', 10);
-    const hoursRaw = Number.parseInt(query.hours ?? '24', 10);
-    const safeLimit = Math.min(Math.max(Number.isNaN(limitRaw) ? 500 : limitRaw, 1), 5000);
-    const safePage = Math.max(Number.isNaN(pageRaw) ? 1 : pageRaw, 1);
-    const safeHours = Math.min(Math.max(Number.isNaN(hoursRaw) ? 24 : hoursRaw, 1), 24 * 30);
+    const safeLimit = query.limit;
+    const safePage = query.page;
+    const safeHours = query.hours;
     const offset = (safePage - 1) * safeLimit;
     const topicFilter = query.sensorId
       ? `\n        |> filter(fn: (r) => r.topic == "${this.escapeFluxString(query.sensorId)}")`
@@ -149,16 +172,23 @@ export class InfluxService {
             }),
           );
         },
-        complete: () => {
-          resolve({
+        complete: async () => {
+          const payload = {
             data: results,
             pagination: {
               limit: safeLimit,
               page: safePage,
               hours: safeHours,
               count: results.length,
+              tier,
             },
-          });
+          };
+          await this.cacheManager.set(
+            cacheKey,
+            payload,
+            TIER_LIMITS[tier].cacheTtlMs,
+          );
+          resolve(payload);
         },
       });
     });
