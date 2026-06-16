@@ -126,7 +126,24 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = clearSession;
+  const logout = useCallback(async () => {
+    try {
+      const activeToken = token || localStorage.getItem("token");
+      if (activeToken) {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${activeToken}`,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("Logout activity logging failed:", err);
+    } finally {
+      clearSession();
+    }
+  }, [token, clearSession]);
 
   const register = async (name, email, password) => {
     setError(null);

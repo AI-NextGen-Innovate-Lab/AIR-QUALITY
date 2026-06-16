@@ -17,6 +17,23 @@ import { RejectApiKeyRequestDto } from './dto/reject-api-key-request.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { ApiKeyRequestStatus, ApiKeyStatus } from '../../generated/prisma/client.js';
+
+function parseRequestStatus(status?: string): ApiKeyRequestStatus | undefined {
+  if (!status) return undefined;
+  if (Object.values(ApiKeyRequestStatus).includes(status as ApiKeyRequestStatus)) {
+    return status as ApiKeyRequestStatus;
+  }
+  return undefined;
+}
+
+function parseKeyStatus(status?: string): ApiKeyStatus | undefined {
+  if (!status) return undefined;
+  if (Object.values(ApiKeyStatus).includes(status as ApiKeyStatus)) {
+    return status as ApiKeyStatus;
+  }
+  return undefined;
+}
 
 @Controller('api-keys')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -43,7 +60,7 @@ export class ApiKeysController {
     if (status === 'PENDING') {
       return this.apiKeysService.getPendingRequests();
     }
-    return this.apiKeysService.getAllRequests(status);
+    return this.apiKeysService.getAllRequests(parseRequestStatus(status));
   }
 
   @Post('requests/:id/approve')
@@ -73,7 +90,7 @@ export class ApiKeysController {
   @Get()
   @Roles('ADMIN', 'OWNER')
   getAllKeys(@Query('status') status?: string) {
-    return this.apiKeysService.getAllKeys(status);
+    return this.apiKeysService.getAllKeys(parseKeyStatus(status));
   }
 
   @Post(':id/revoke')

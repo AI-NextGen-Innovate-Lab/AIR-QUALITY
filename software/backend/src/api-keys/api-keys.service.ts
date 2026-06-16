@@ -7,6 +7,7 @@ import {
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ApiKeyRequestStatus, ApiKeyStatus } from '../../generated/prisma/client.js';
 
 const KEY_PREFIX_LABEL = 'aqm_';
 const KEY_RANDOM_BYTES = 24;
@@ -16,10 +17,6 @@ const KEY_EXPIRY_DAYS = 90;
 export class ApiKeysService {
   constructor(private prisma: PrismaService) {}
 
-  private get db() {
-    return this.prisma as any;
-  }
-
   private async logActivity(
     userId: number,
     action: string,
@@ -27,7 +24,7 @@ export class ApiKeysService {
     metadata: Record<string, unknown> = {},
   ) {
     try {
-      await this.db.activityLog.create({
+      await this.prisma.activityLog.create({
         data: {
           action: `API_KEY_${action}`,
           description,
@@ -53,15 +50,15 @@ export class ApiKeysService {
   }
 
   async createRequest(userId: number, purpose: string) {
-    const pending = await this.db.apiKeyRequest.findFirst({
-      where: { userId, status: 'PENDING' },
+    const pending = await this.prisma.apiKeyRequest.findFirst({
+      where: { userId, status: ApiKeyRequestStatus.PENDING },
     });
 
     if (pending) {
       throw new BadRequestException('You already have a pending API access request');
     }
 
-    const request = await this.db.apiKeyRequest.create({
+    const request = await this.prisma.apiKeyRequest.create({
       data: { userId, purpose },
       include: {
         user: { select: { id: true, name: true, email: true } },
@@ -77,7 +74,7 @@ export class ApiKeysService {
   }
 
   async getMyRequests(userId: number) {
-    return this.db.apiKeyRequest.findMany({
+    return this.prisma.apiKeyRequest.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -96,8 +93,8 @@ export class ApiKeysService {
   }
 
   async getPendingRequests() {
-    return this.db.apiKeyRequest.findMany({
-      where: { status: 'PENDING' },
+    return this.prisma.apiKeyRequest.findMany({
+      where: { status: ApiKeyRequestStatus.PENDING },
       orderBy: { createdAt: 'asc' },
       include: {
         user: { select: { id: true, name: true, email: true, role: true } },
@@ -105,9 +102,9 @@ export class ApiKeysService {
     });
   }
 
-  async getAllRequests(status?: string) {
+  async getAllRequests(status?: ApiKeyRequestStatus) {
     const where = status ? { status } : {};
-    return this.db.apiKeyRequest.findMany({
+    return this.prisma.apiKeyRequest.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -127,7 +124,7 @@ export class ApiKeysService {
   }
 
   async approveRequest(requestId: number, reviewerId: number) {
-    const request = await this.db.apiKeyRequest.findUnique({
+    const request = await this.prisma.apiKeyRequest.findUnique({
       where: { id: requestId },
       include: { user: true },
     });
@@ -136,7 +133,7 @@ export class ApiKeysService {
       throw new NotFoundException('Request not found');
     }
 
-    if (request.status !== 'PENDING') {
+    if (request.status !== ApiKeyRequestStatus.PENDING) {
       throw new BadRequestException('Request is not pending');
     }
 
@@ -146,11 +143,11 @@ export class ApiKeysService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + KEY_EXPIRY_DAYS);
 
-    const [updatedRequest, apiKey] = await this.db.$transaction(async (tx: any) => {
+    const [updatedRequest, apiKey] = await this.prisma.$transaction(async (tx) => {
       const approved = await tx.apiKeyRequest.update({
         where: { id: requestId },
         data: {
-          status: 'APPROVED',
+          status: ApiKeyRequestStatus.APPROVED,
           reviewedBy: reviewerId,
           reviewedAt: new Date(),
         },
@@ -196,7 +193,7 @@ export class ApiKeysService {
   }
 
   async rejectRequest(requestId: number, reviewerId: number, reviewNote?: string) {
-    const request = await this.db.apiKeyRequest.findUnique({
+    const request = await this.prisma.apiKeyRequest.findUnique({
       where: { id: requestId },
     });
 
@@ -204,14 +201,14 @@ export class ApiKeysService {
       throw new NotFoundException('Request not found');
     }
 
-    if (request.status !== 'PENDING') {
+    if (request.status !== ApiKeyRequestStatus.PENDING) {
       throw new BadRequestException('Request is not pending');
     }
 
-    const updated = await this.db.apiKeyRequest.update({
+    const updated = await this.prisma.apiKeyRequest.update({
       where: { id: requestId },
       data: {
-        status: 'REJECTED',
+        status: ApiKeyRequestStatus.REJECTED,
         reviewedBy: reviewerId,
         reviewedAt: new Date(),
         reviewNote: reviewNote ?? null,
@@ -228,7 +225,7 @@ export class ApiKeysService {
   }
 
   async getMyKeys(userId: number) {
-    return this.db.apiKey.findMany({
+    return this.prisma.apiKey.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       select: {
@@ -244,9 +241,9 @@ export class ApiKeysService {
     });
   }
 
-  async getAllKeys(status?: string) {
+  async getAllKeys(status?: ApiKeyStatus) {
     const where = status ? { status } : {};
-    return this.db.apiKey.findMany({
+    return this.prisma.apiKey.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -256,7 +253,7 @@ export class ApiKeysService {
   }
 
   async revokeKey(keyId: number, actorId: number, actorRole: string) {
-    const apiKey = await this.db.apiKey.findUnique({
+    const apiKey = await this.prisma.apiKey.findUnique({
       where: { id: keyId },
     });
 
@@ -269,14 +266,14 @@ export class ApiKeysService {
       throw new ForbiddenException('You cannot revoke this API key');
     }
 
-    if (apiKey.status === 'REVOKED') {
+    if (apiKey.status === ApiKeyStatus.REVOKED) {
       throw new BadRequestException('API key is already revoked');
     }
 
-    const updated = await this.db.apiKey.update({
+    const updated = await this.prisma.apiKey.update({
       where: { id: keyId },
       data: {
-        status: 'REVOKED',
+        status: ApiKeyStatus.REVOKED,
         revokedAt: new Date(),
         revokedBy: actorId,
       },
@@ -296,8 +293,8 @@ export class ApiKeysService {
     }
 
     const keyPrefix = this.displayPrefix(rawKey);
-    const candidates = await this.db.apiKey.findMany({
-      where: { keyPrefix, status: 'ACTIVE' },
+    const candidates = await this.prisma.apiKey.findMany({
+      where: { keyPrefix, status: ApiKeyStatus.ACTIVE },
     });
 
     for (const candidate of candidates) {
@@ -305,14 +302,14 @@ export class ApiKeysService {
       if (!match) continue;
 
       if (candidate.expiresAt && candidate.expiresAt < new Date()) {
-        await this.db.apiKey.update({
+        await this.prisma.apiKey.update({
           where: { id: candidate.id },
-          data: { status: 'EXPIRED' },
+          data: { status: ApiKeyStatus.EXPIRED },
         });
         return null;
       }
 
-      await this.db.apiKey.update({
+      await this.prisma.apiKey.update({
         where: { id: candidate.id },
         data: { lastUsedAt: new Date() },
       });

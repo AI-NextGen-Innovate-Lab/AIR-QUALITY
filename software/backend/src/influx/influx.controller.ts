@@ -15,11 +15,12 @@ export class InfluxController {
     @Query('hours') hours?: string,
     @Query('sensorId') sensorId?: string,
     @Query('sensor') sensor?: string,
+    @Query('measurement') measurement?: string,
     @Request() req?: { accessTier?: AccessTier },
   ) {
     const tier = req?.accessTier ?? 'PUBLIC';
     const clamped = clampReadingsQuery(
-      { limit, page, hours, sensorId: sensorId ?? sensor },
+      { limit, page, hours, sensorId: sensorId ?? sensor, measurement },
       tier,
     );
     return this.influxService.getReadings(clamped, tier);

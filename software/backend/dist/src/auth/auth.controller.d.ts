@@ -15,4 +15,12 @@ export declare class AuthController {
     validateToken(body: {
         token: string;
     }): Promise<any>;
+    logout(req: {
+        user: {
+            id: number;
+            email?: string;
+        };
+    }): Promise<{
+        ok: boolean;
+    }>;
 }

@@ -111,6 +111,7 @@ export class AuthService {
       });
 
       if (!user) {
+        console.warn(`AUTH_LOGIN failed for unknown email: ${email}`);
         throw new UnauthorizedException('Invalid credentials');
       }
 
@@ -150,6 +151,11 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid token');
     }
+  }
+
+  async logout(userId: number, email?: string) {
+    await this.logAuthActivity(userId, 'LOGOUT', true, { email: email ?? null });
+    return { ok: true };
   }
 
   create(createAuthDto: CreateAuthDto) {

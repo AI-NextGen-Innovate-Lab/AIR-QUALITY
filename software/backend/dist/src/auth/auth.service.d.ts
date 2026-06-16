@@ -16,6 +16,9 @@ export declare class AuthService {
         access_token: string;
     }>;
     validateToken(token: string): Promise<any>;
+    logout(userId: number, email?: string): Promise<{
+        ok: boolean;
+    }>;
     create(createAuthDto: CreateAuthDto): string;
     findAll(): string;
     findOne(id: number): string;

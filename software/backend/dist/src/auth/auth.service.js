@@ -98,6 +98,7 @@ let AuthService = class AuthService {
                 where: { email },
             });
             if (!user) {
+                console.warn(`AUTH_LOGIN failed for unknown email: ${email}`);
                 throw new UnauthorizedException('Invalid credentials');
             }
             const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -132,6 +133,10 @@ let AuthService = class AuthService {
         catch {
             throw new UnauthorizedException('Invalid token');
         }
+    }
+    async logout(userId, email) {
+        await this.logAuthActivity(userId, 'LOGOUT', true, { email: email ?? null });
+        return { ok: true };
     }
     create(createAuthDto) {
         return 'This action adds a new auth';

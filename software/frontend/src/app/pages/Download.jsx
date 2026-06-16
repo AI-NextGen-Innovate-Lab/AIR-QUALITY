@@ -11,6 +11,7 @@ import {
   Info,
 } from 'lucide-react';
 import { fetchReadings } from '@/app/lib/api';
+import { getUsersApi } from '@/app/lib/api/users';
 import { groupReadingsBySensor, formatSensorLabel } from '@/app/lib/sensorData';
 import { hoursForDownloadRange } from '@/app/lib/readings/downloadFilters';
 import { downloadTextFile, toCsv } from '@/app/lib/readings/csvExport';
@@ -21,6 +22,7 @@ import { Button } from '@/app/components/ui/button';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { panel } from '@/app/lib/dashboardStyles';
 import { cn } from '@/app/lib/utils/cn';
+import { useAuth } from '@/app/context/AuthContext';
 
 const TIME_RANGES = [
   { key: 'day', label: 'Day', hours: 24, note: 'Last 24 hours' },
@@ -39,6 +41,14 @@ const COLUMN_GLOSSARY = [
 ];
 
 const MAX_ROWS = 5000;
+const MEASUREMENTS = [
+  'PM2.5',
+  'PM10',
+  'Temperature',
+  'RelativeHumidity',
+  'AbsoluteHumidity',
+  'Pressure',
+];
 
 function choiceCard(active) {
   return cn(
@@ -50,9 +60,13 @@ function choiceCard(active) {
 }
 
 export default function Download() {
+  const { user } = useAuth();
+  const isAdmin = ['ADMIN', 'OWNER'].includes(String(user?.role || '').toUpperCase());
   const [selectedSensors, setSelectedSensors] = useState([]);
+  const [selectedMeasurements, setSelectedMeasurements] = useState(['PM2.5', 'PM10']);
   const [timeRange, setTimeRange] = useState('week');
   const [format, setFormat] = useState('csv');
+  const [reportType, setReportType] = useState('sensor');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
@@ -87,6 +101,14 @@ export default function Download() {
     );
   };
 
+  const toggleMeasurement = (measurement) => {
+    setSelectedMeasurements((prev) =>
+      prev.includes(measurement)
+        ? prev.filter((m) => m !== measurement)
+        : [...prev, measurement]
+    );
+  };
+
   const hoursSelected = hoursForDownloadRange(timeRange);
   const rangeMeta = TIME_RANGES.find((r) => r.key === timeRange) ?? TIME_RANGES[1];
 
@@ -98,14 +120,55 @@ export default function Download() {
   const handleDownload = async () => {
     setMessage(null);
     setError(null);
-    if (!selectedSensors.length) {
+    if (reportType === 'sensor' && !selectedSensors.length) {
       setError('Select at least one sensor.');
+      return;
+    }
+    if (reportType === 'sensor' && !selectedMeasurements.length) {
+      setError('Select at least one measurement.');
       return;
     }
     setBusy(true);
     try {
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      if (reportType === 'system') {
+        if (!isAdmin) {
+          throw new Error('Only admin/owner can download system reports');
+        }
+        const logs = await getUsersApi.getAuditLogs(500);
+        const mapped = (logs || []).map((log) => ({
+          time: log.createdAt,
+          action: log.action,
+          actorEmail: log.user?.email ?? '',
+          actorRole: log.user?.role ?? '',
+          description: log.description,
+          metadata: JSON.stringify(log.metadata ?? {}),
+        }));
+        const csvBody = toCsv(mapped, [
+          'time',
+          'action',
+          'actorEmail',
+          'actorRole',
+          'description',
+          'metadata',
+        ]);
+        downloadTextFile(
+          `system_report_${stamp}.csv`,
+          '\uFEFF' + csvBody,
+          'text/csv;charset=utf-8;'
+        );
+        setMessage(`Downloaded system report with ${mapped.length} activity row(s).`);
+        setBusy(false);
+        return;
+      }
+
       const hours = hoursForDownloadRange(timeRange);
-      const json = await fetchReadings({ limit: MAX_ROWS, page: 1, hours });
+      const json = await fetchReadings({
+        limit: MAX_ROWS,
+        page: 1,
+        hours,
+        measurement: selectedMeasurements,
+      });
       const setIds = new Set(selectedSensors);
       const filtered = (json.data || []).filter((r) => r.id && setIds.has(r.id));
       if (!filtered.length) {
@@ -119,12 +182,13 @@ export default function Download() {
         if (!grouped[key]) {
           grouped[key] = { time: r.time, id: r.id };
         }
-        grouped[key][r.measurement] = r.value;
+        if (!selectedMeasurements.length || selectedMeasurements.includes(r.measurement)) {
+          grouped[key][r.measurement] = r.value;
+        }
       });
       const rows = Object.values(grouped);
       const columns = Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
       const csvBody = toCsv(rows, columns);
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
       if (format === 'pdf') {
         const note =
           'Air quality export\n\nPDF is not generated server-side. Use CSV or Excel.\n\n';
@@ -224,6 +288,37 @@ export default function Download() {
 
       <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
+          <div className={panel()}>
+            <h3 className="mb-3 text-lg font-semibold text-foreground">Report type</h3>
+            <div className="grid gap-3 md:grid-cols-2">
+              <button
+                type="button"
+                className={choiceCard(reportType === 'sensor')}
+                onClick={() => setReportType('sensor')}
+              >
+                <p className="text-sm font-medium text-foreground">Sensor data report</p>
+                <p className="mt-1 text-xs text-muted">
+                  Custom export by sensor, time range, and measurement.
+                </p>
+              </button>
+              <button
+                type="button"
+                className={choiceCard(reportType === 'system')}
+                onClick={() => setReportType('system')}
+                disabled={!isAdmin}
+              >
+                <p className="text-sm font-medium text-foreground">System activity report</p>
+                <p className="mt-1 text-xs text-muted">
+                  Audit logs: login, logout, API key actions, and admin operations.
+                </p>
+                {!isAdmin && (
+                  <p className="mt-1 text-xs text-aqi-unhealthy">Admin/Owner only</p>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {reportType === 'sensor' && (
           <div className={cn(panel(), 'min-w-0 overflow-hidden')}>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-lg font-semibold text-foreground">1. Select sensors</h3>
@@ -289,7 +384,9 @@ export default function Download() {
               </ul>
             )}
           </div>
+          )}
 
+          {reportType === 'sensor' && (
           <div className={panel()}>
             <h3 className="mb-2 text-lg font-semibold text-foreground">2. Time period</h3>
             <p className="text-sm text-muted mb-4">
@@ -330,6 +427,32 @@ export default function Download() {
               </table>
             </div>
           </div>
+          )}
+
+          {reportType === 'sensor' && (
+          <div className={panel()}>
+            <h3 className="mb-3 text-lg font-semibold text-foreground">3. Measurements</h3>
+            <p className="mb-4 text-sm text-muted">
+              Pick specific measurement fields to include in your report.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+              {MEASUREMENTS.map((measurement) => {
+                const selected = selectedMeasurements.includes(measurement);
+                return (
+                  <label key={measurement} className={choiceCard(selected)}>
+                    <input
+                      type="checkbox"
+                      className="mr-2 h-4 w-4 align-middle"
+                      checked={selected}
+                      onChange={() => toggleMeasurement(measurement)}
+                    />
+                    <span className="text-sm font-medium text-foreground">{measurement}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+          )}
 
           <div className={panel()}>
             <h3 className="mb-4 text-lg font-semibold text-foreground">3. Export format</h3>
@@ -374,12 +497,20 @@ export default function Download() {
             <h3 className="mb-4 text-lg font-semibold text-foreground">Summary</h3>
             <dl className="space-y-2 text-sm text-muted">
               <div className="flex justify-between gap-2">
+                <dt>Report type</dt>
+                <dd className="font-medium text-foreground capitalize">{reportType}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
                 <dt>Sensors</dt>
-                <dd className="font-medium text-foreground">{selectedSensors.length}</dd>
+                <dd className="font-medium text-foreground">
+                  {reportType === 'system' ? 'N/A' : selectedSensors.length}
+                </dd>
               </div>
               <div className="flex justify-between gap-2">
                 <dt>Range</dt>
-                <dd className="font-medium text-foreground capitalize">{timeRange}</dd>
+                <dd className="font-medium text-foreground capitalize">
+                  {reportType === 'system' ? 'Recent 500 events' : timeRange}
+                </dd>
               </div>
               <div className="flex justify-between gap-2">
                 <dt>API hours</dt>
@@ -388,7 +519,13 @@ export default function Download() {
               <div className="flex justify-between gap-2">
                 <dt>Rows (est.)</dt>
                 <dd className="font-medium text-foreground">
-                  ~{estimateRows.toLocaleString()}
+                  {reportType === 'system' ? '~500' : `~${estimateRows.toLocaleString()}`}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt>Measurements</dt>
+                <dd className="font-medium text-foreground">
+                  {reportType === 'system' ? 'N/A' : selectedMeasurements.length}
                 </dd>
               </div>
               <div className="flex justify-between gap-2">
@@ -399,7 +536,7 @@ export default function Download() {
             <Button
               type="button"
               className="mt-6 w-full"
-              disabled={busy || !selectedSensors.length}
+              disabled={busy || (reportType === 'sensor' && (!selectedSensors.length || !selectedMeasurements.length))}
               onClick={handleDownload}
             >
               <DownloadIcon className="mr-2 h-4 w-4" />
@@ -420,10 +557,10 @@ export default function Download() {
               How it works
             </h4>
             <ol className="list-decimal list-inside space-y-2 text-sm text-muted">
-              <li>Loads recent readings to list available sensors.</li>
-              <li>Fetches up to {MAX_ROWS} rows for your time window.</li>
-              <li>Filters to selected sensors and pivots measurements into columns.</li>
-              <li>Triggers a browser download — nothing is stored on our servers.</li>
+              <li>Choose Sensor report or System report.</li>
+              <li>Sensor report supports custom filters by sensor, timeframe, and measurement.</li>
+              <li>System report exports recent audit logs (admin and owner roles).</li>
+              <li>Download runs in the browser; nothing extra is stored server-side.</li>
             </ol>
           </div>
         </div>

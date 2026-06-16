@@ -210,6 +210,29 @@ curl -X POST "${base}/auth/login" \\
         </div>
       </PageSection>
 
+      <PageSection title="How to use the system" className="border-t border-border py-0">
+        <div className={panel()}>
+          <ol className="list-decimal list-inside space-y-3 text-sm text-muted">
+            <li>
+              <strong className="text-foreground">Public users:</strong> view overview, map, and
+              documentation without signing in.
+            </li>
+            <li>
+              <strong className="text-foreground">Registered users:</strong> sign in, access analytics,
+              download center, and request API keys from <code>/api-access</code>.
+            </li>
+            <li>
+              <strong className="text-foreground">Private sensor owners:</strong> role <code>OWNER</code>{' '}
+              opens <code>/private-sensors</code> to monitor topic health and infrastructure data.
+            </li>
+            <li>
+              <strong className="text-foreground">Admins/Owners:</strong> use <code>/admin</code> for
+              user management, API approvals, key revocation, and audit logs.
+            </li>
+          </ol>
+        </div>
+      </PageSection>
+
       <PageSection title="Readings & health" className="border-t border-border py-0">
         <div className={panel()}>
           <p className="text-sm text-muted mb-4">
@@ -236,6 +259,7 @@ curl -X POST "${base}/auth/login" \\
               ['hours', 'Rolling window in hours (e.g. 24, 168, 720)'],
               ['sensorId', 'Filter to a single MQTT topic / sensor id'],
               ['sensor', 'Alias for sensorId'],
+              ['measurement', 'Filter by measurement name(s), comma-separated'],
             ]}
             response={`{
   "data": [
@@ -297,6 +321,12 @@ curl -X POST "${base}/auth/login" \\
             description="Verify that a token is still valid."
             body={`{ "token": "<jwt>" }`}
           />
+          <Endpoint
+            method="POST"
+            path="/auth/logout"
+            auth
+            description="Log out and record logout activity in audit logs."
+          />
         </div>
       </PageSection>
 
@@ -314,6 +344,39 @@ curl -X POST "${base}/auth/login" \\
             auth
             description="Update your display name. Email and role changes require an administrator."
             body={`{ "name": "Jane M. Doe" }`}
+          />
+        </div>
+      </PageSection>
+
+      <PageSection title="API key lifecycle" className="border-t border-border py-0">
+        <div className={panel()}>
+          <p className="text-sm text-muted mb-4">
+            API keys are requested by users and approved/revoked by admins or owners.
+          </p>
+          <Endpoint
+            method="POST"
+            path="/api-keys/requests"
+            auth
+            description="Submit API access request with purpose."
+            body={`{ "purpose": "Research export integration" }`}
+          />
+          <Endpoint
+            method="GET"
+            path="/api-keys/requests/mine"
+            auth
+            description="List your own key requests."
+          />
+          <Endpoint
+            method="GET"
+            path="/api-keys/mine"
+            auth
+            description="List your active/revoked keys (prefix only, never plaintext key)."
+          />
+          <Endpoint
+            method="POST"
+            path="/api-keys/:id/revoke"
+            auth
+            description="Revoke your key (or admin revokes any user key)."
           />
         </div>
       </PageSection>
@@ -352,6 +415,13 @@ curl -X POST "${base}/auth/login" \\
             body={`{ "role": "ADMIN" }`}
           />
           <Endpoint method="DELETE" path="/users/:id" auth description="Delete a user." />
+          <Endpoint
+            method="GET"
+            path="/users/audit-logs"
+            auth
+            description="Latest activity logs for security and operations review (admin/owner only)."
+            query={[['limit', 'Optional max rows, defaults to 100, capped at 500']]}
+          />
         </div>
       </PageSection>
 

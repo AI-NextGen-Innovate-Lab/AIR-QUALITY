@@ -19,9 +19,9 @@ let InfluxController = class InfluxController {
     constructor(influxService) {
         this.influxService = influxService;
     }
-    async fetchData(limit, page, hours, sensorId, sensor, req) {
+    async fetchData(limit, page, hours, sensorId, sensor, measurement, req) {
         const tier = req?.accessTier ?? 'PUBLIC';
-        const clamped = clampReadingsQuery({ limit, page, hours, sensorId: sensorId ?? sensor }, tier);
+        const clamped = clampReadingsQuery({ limit, page, hours, sensorId: sensorId ?? sensor, measurement }, tier);
         return this.influxService.getReadings(clamped, tier);
     }
     getHealth() {
@@ -36,9 +36,10 @@ __decorate([
     __param(2, Query('hours')),
     __param(3, Query('sensorId')),
     __param(4, Query('sensor')),
-    __param(5, Request()),
+    __param(5, Query('measurement')),
+    __param(6, Request()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, Object]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], InfluxController.prototype, "fetchData", null);
 __decorate([

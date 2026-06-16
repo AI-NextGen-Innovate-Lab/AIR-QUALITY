@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, HttpCode, HttpStatus, Query } from '@nestjs/common';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
@@ -28,6 +28,9 @@ let UsersController = class UsersController {
     findAll() {
         return this.usersService.findAll();
     }
+    getAuditLogs(limit, req) {
+        return this.usersService.getAuditLogs(Number(limit || '100'), req.user.role);
+    }
     findMe(req) {
         return this.usersService.findOne(req.user.id);
     }
@@ -38,13 +41,13 @@ let UsersController = class UsersController {
         return this.usersService.findOne(+id);
     }
     update(id, updateUserDto, req) {
-        return this.usersService.update(+id, updateUserDto, req.user.role);
+        return this.usersService.update(+id, updateUserDto, req.user.role, req.user.id);
     }
     updateRole(id, body, req) {
-        return this.usersService.updateRole(+id, body.role, req.user.role);
+        return this.usersService.updateRole(+id, body.role, req.user.role, req.user.id);
     }
     remove(id, req) {
-        return this.usersService.remove(+id, req.user.role);
+        return this.usersService.remove(+id, req.user.role, req.user.id);
     }
 };
 __decorate([
@@ -64,6 +67,15 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findAll", null);
+__decorate([
+    Get('audit-logs'),
+    Roles('ADMIN', 'OWNER'),
+    __param(0, Query('limit')),
+    __param(1, Request()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getAuditLogs", null);
 __decorate([
     Get('me'),
     __param(0, Request()),

@@ -15,6 +15,24 @@ let UsersService = class UsersService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    async logUserActivity(actorUserId, action, description, metadata = {}) {
+        try {
+            await this.prisma.activityLog.create({
+                data: {
+                    action: `USER_${action}`,
+                    description,
+                    userId: actorUserId,
+                    metadata: {
+                        timestamp: new Date().toISOString(),
+                        ...metadata,
+                    },
+                },
+            });
+        }
+        catch (error) {
+            console.error('Failed to log user activity:', error);
+        }
+    }
     async create(createUserDto) {
         try {
             const { email, password, name, role = 'USER' } = createUserDto;
@@ -104,7 +122,7 @@ let UsersService = class UsersService {
             if (!Object.keys(updateData).length) {
                 return this.findOne(id);
             }
-            return await this.prisma.user.update({
+            const updated = await this.prisma.user.update({
                 where: { id },
                 data: updateData,
                 select: {
@@ -116,6 +134,10 @@ let UsersService = class UsersService {
                     updatedAt: true,
                 },
             });
+            await this.logUserActivity(id, 'UPDATE_PROFILE', 'User updated own profile', {
+                updatedFields: Object.keys(updateData),
+            });
+            return updated;
         }
         catch (error) {
             if (error instanceof NotFoundException) {
@@ -124,7 +146,7 @@ let UsersService = class UsersService {
             throw new BadRequestException(error instanceof Error ? error.message : 'Failed to update profile');
         }
     }
-    async update(id, updateUserDto, currentUserRole) {
+    async update(id, updateUserDto, currentUserRole, actorUserId) {
         try {
             if (currentUserRole !== 'ADMIN' && currentUserRole !== 'OWNER') {
                 throw new ForbiddenException('Only admins can update users');
@@ -153,6 +175,10 @@ let UsersService = class UsersService {
                     role: true,
                 },
             });
+            await this.logUserActivity(actorUserId, 'UPDATE', 'Admin updated user', {
+                targetUserId: id,
+                updatedFields: Object.keys(updateData),
+            });
             return updatedUser;
         }
         catch (error) {
@@ -162,7 +188,7 @@ let UsersService = class UsersService {
             throw new BadRequestException(error instanceof Error ? error.message : 'Failed to update user');
         }
     }
-    async updateRole(id, role, currentUserRole) {
+    async updateRole(id, role, currentUserRole, actorUserId) {
         try {
             if (currentUserRole !== 'ADMIN' && currentUserRole !== 'OWNER') {
                 throw new ForbiddenException('Only admins can update user roles');
@@ -186,6 +212,10 @@ let UsersService = class UsersService {
                     role: true,
                 },
             });
+            await this.logUserActivity(actorUserId, 'UPDATE_ROLE', 'Admin changed user role', {
+                targetUserId: id,
+                role: role.toUpperCase(),
+            });
             return updatedUser;
         }
         catch (error) {
@@ -195,7 +225,7 @@ let UsersService = class UsersService {
             throw new BadRequestException(error instanceof Error ? error.message : 'Failed to update user role');
         }
     }
-    async remove(id, currentUserRole) {
+    async remove(id, currentUserRole, actorUserId) {
         try {
             if (currentUserRole !== 'ADMIN' && currentUserRole !== 'OWNER') {
                 throw new ForbiddenException('Only admins can delete users');
@@ -214,6 +244,10 @@ let UsersService = class UsersService {
                     name: true,
                 },
             });
+            await this.logUserActivity(actorUserId, 'DELETE', 'Admin deleted user', {
+                targetUserId: id,
+                targetEmail: deletedUser.email,
+            });
             return deletedUser;
         }
         catch (error) {
@@ -222,6 +256,26 @@ let UsersService = class UsersService {
             }
             throw new BadRequestException(error instanceof Error ? error.message : 'Failed to delete user');
         }
+    }
+    async getAuditLogs(limit = 100, actorRole) {
+        if (actorRole !== 'ADMIN' && actorRole !== 'OWNER') {
+            throw new ForbiddenException('Only admins can access audit logs');
+        }
+        const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
+        return this.prisma.activityLog.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: safeLimit,
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        role: true,
+                    },
+                },
+            },
+        });
     }
 };
 UsersService = __decorate([

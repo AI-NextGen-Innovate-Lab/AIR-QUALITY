@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, HttpCode, HttpStatus, Query } from '@nestjs/common';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
@@ -24,6 +24,15 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Get('audit-logs')
+  @Roles('ADMIN', 'OWNER')
+  getAuditLogs(
+    @Query('limit') limit: string,
+    @Request() req: { user: { role: string } },
+  ) {
+    return this.usersService.getAuditLogs(Number(limit || '100'), req.user.role);
+  }
+
   @Get('me')
   findMe(@Request() req: { user: { id: number } }) {
     return this.usersService.findOne(req.user.id);
@@ -43,18 +52,18 @@ export class UsersController {
   @Patch(':id')
   @Roles('ADMIN', 'OWNER')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Request() req: any) {
-    return this.usersService.update(+id, updateUserDto, req.user.role);
+    return this.usersService.update(+id, updateUserDto, req.user.role, req.user.id);
   }
 
   @Patch(':id/role')
   @Roles('ADMIN', 'OWNER')
   updateRole(@Param('id') id: string, @Body() body: { role: string }, @Request() req: any) {
-    return this.usersService.updateRole(+id, body.role, req.user.role);
+    return this.usersService.updateRole(+id, body.role, req.user.role, req.user.id);
   }
 
   @Delete(':id')
   @Roles('ADMIN', 'OWNER')
   remove(@Param('id') id: string, @Request() req: any) {
-    return this.usersService.remove(+id, req.user.role);
+    return this.usersService.remove(+id, req.user.role, req.user.id);
   }
 }

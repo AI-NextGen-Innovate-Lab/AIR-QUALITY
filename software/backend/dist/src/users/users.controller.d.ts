@@ -6,6 +6,11 @@ export declare class UsersController {
     constructor(usersService: UsersService);
     create(createUserDto: CreateUserDto, req: any): Promise<any>;
     findAll(): Promise<any>;
+    getAuditLogs(limit: string, req: {
+        user: {
+            role: string;
+        };
+    }): Promise<any>;
     findMe(req: {
         user: {
             id: number;

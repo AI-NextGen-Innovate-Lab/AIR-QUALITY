@@ -10,10 +10,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
 import { CreateAuthDto } from './dto/create-auth.dto.js';
 import { LoginAuthDto } from './dto/login-auth.dto.js';
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -27,6 +28,9 @@ let AuthController = class AuthController {
     }
     validateToken(body) {
         return this.authService.validateToken(body.token);
+    }
+    logout(req) {
+        return this.authService.logout(req.user.id, req.user.email);
     }
 };
 __decorate([
@@ -53,6 +57,15 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "validateToken", null);
+__decorate([
+    Post('logout'),
+    UseGuards(JwtAuthGuard),
+    HttpCode(HttpStatus.OK),
+    __param(0, Request()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "logout", null);
 AuthController = __decorate([
     Controller('auth'),
     __metadata("design:paramtypes", [AuthService])

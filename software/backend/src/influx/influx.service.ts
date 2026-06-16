@@ -94,7 +94,8 @@ export class InfluxService {
   }
 
   async getReadings(query: ClampedReadingsQuery, tier: AccessTier = 'PUBLIC') {
-    const cacheKey = `readings:${tier}:${query.hours}:${query.sensorId ?? 'all'}:${query.page}:${query.limit}`;
+    const measurementKey = query.measurements?.join('|') ?? 'all-metrics';
+    const cacheKey = `readings:${tier}:${query.hours}:${query.sensorId ?? 'all'}:${measurementKey}:${query.page}:${query.limit}`;
     const cached = await this.cacheManager.get<{
       data: Array<{
         id: string;
@@ -134,11 +135,19 @@ export class InfluxService {
     const topicFilter = query.sensorId
       ? `\n        |> filter(fn: (r) => r.topic == "${this.escapeFluxString(query.sensorId)}")`
       : '';
+    const measurementFilter =
+      query.measurements && query.measurements.length
+        ? `\n        |> filter(fn: (r) => ${
+            query.measurements
+              .map((m) => `r.name == "${this.escapeFluxString(m)}"`)
+              .join(' or ')
+          })`
+        : '';
 
     // Never use map() to merge r.value (string) and r._value (float) — that panics Influx.
     const fluxQuery = `
       from(bucket: "${bucket}")
-        |> range(start: -${safeHours}h)${topicFilter}
+        |> range(start: -${safeHours}h)${topicFilter}${measurementFilter}
         |> filter(fn: (r) => exists r.topic and r.topic != "")
         |> filter(fn: (r) => exists r.name and r.name != "")
         |> filter(fn: (r) => r._field == "value")

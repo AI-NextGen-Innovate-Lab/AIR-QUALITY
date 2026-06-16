@@ -56,6 +56,15 @@ export const getUsersApi = {
       throw error;
     }
   },
+
+  async getAuditLogs(limit = 100) {
+    try {
+      return await apiGet(`${API_BASE}/audit-logs`, { limit });
+    } catch (error) {
+      console.error('Failed to fetch audit logs:', error);
+      throw error;
+    }
+  },
 };
 
 /** @deprecated Prefer getUsersApi — kept for api/index.js re-exports */

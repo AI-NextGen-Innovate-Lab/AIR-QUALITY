@@ -8,6 +8,29 @@ import * as bcrypt from 'bcrypt';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
+  private async logUserActivity(
+    actorUserId: number,
+    action: string,
+    description: string,
+    metadata: Record<string, unknown> = {},
+  ) {
+    try {
+      await (this.prisma as any).activityLog.create({
+        data: {
+          action: `USER_${action}`,
+          description,
+          userId: actorUserId,
+          metadata: {
+            timestamp: new Date().toISOString(),
+            ...metadata,
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Failed to log user activity:', error);
+    }
+  }
+
   async create(createUserDto: CreateUserDto) {
     try {
       const { email, password, name, role = 'USER' } = createUserDto;
@@ -116,7 +139,7 @@ export class UsersService {
         return this.findOne(id);
       }
 
-      return await (this.prisma as any).user.update({
+      const updated = await (this.prisma as any).user.update({
         where: { id },
         data: updateData,
         select: {
@@ -128,6 +151,10 @@ export class UsersService {
           updatedAt: true,
         },
       });
+      await this.logUserActivity(id, 'UPDATE_PROFILE', 'User updated own profile', {
+        updatedFields: Object.keys(updateData),
+      });
+      return updated;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -138,7 +165,7 @@ export class UsersService {
     }
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto, currentUserRole: string) {
+  async update(id: number, updateUserDto: UpdateUserDto, currentUserRole: string, actorUserId: number) {
     try {
       // Only admin/owner can update users
       if (currentUserRole !== 'ADMIN' && currentUserRole !== 'OWNER') {
@@ -176,6 +203,10 @@ export class UsersService {
         },
       });
 
+      await this.logUserActivity(actorUserId, 'UPDATE', 'Admin updated user', {
+        targetUserId: id,
+        updatedFields: Object.keys(updateData),
+      });
       return updatedUser;
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof ForbiddenException) {
@@ -187,7 +218,7 @@ export class UsersService {
     }
   }
 
-  async updateRole(id: number, role: string, currentUserRole: string) {
+  async updateRole(id: number, role: string, currentUserRole: string, actorUserId: number) {
     try {
       // Only admin/owner can update roles
       if (currentUserRole !== 'ADMIN' && currentUserRole !== 'OWNER') {
@@ -218,6 +249,10 @@ export class UsersService {
         },
       });
 
+      await this.logUserActivity(actorUserId, 'UPDATE_ROLE', 'Admin changed user role', {
+        targetUserId: id,
+        role: role.toUpperCase(),
+      });
       return updatedUser;
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof ForbiddenException || error instanceof BadRequestException) {
@@ -229,7 +264,7 @@ export class UsersService {
     }
   }
 
-  async remove(id: number, currentUserRole: string) {
+  async remove(id: number, currentUserRole: string, actorUserId: number) {
     try {
       // Only admin/owner can delete users
       if (currentUserRole !== 'ADMIN' && currentUserRole !== 'OWNER') {
@@ -254,6 +289,10 @@ export class UsersService {
         },
       });
 
+      await this.logUserActivity(actorUserId, 'DELETE', 'Admin deleted user', {
+        targetUserId: id,
+        targetEmail: deletedUser.email,
+      });
       return deletedUser;
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof ForbiddenException) {
@@ -263,5 +302,27 @@ export class UsersService {
         error instanceof Error ? error.message : 'Failed to delete user'
       );
     }
+  }
+
+  async getAuditLogs(limit = 100, actorRole?: string) {
+    if (actorRole !== 'ADMIN' && actorRole !== 'OWNER') {
+      throw new ForbiddenException('Only admins can access audit logs');
+    }
+
+    const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
+    return (this.prisma as any).activityLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: safeLimit,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
   }
 }

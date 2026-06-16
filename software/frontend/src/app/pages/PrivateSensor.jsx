@@ -30,6 +30,15 @@ export default function PrivateSensor() {
       {error && <ErrorBlock message={error} className="mb-6" />}
 
       <div className={panel('mb-8')}>
+        <h2 className="mb-3 text-lg font-semibold text-foreground">Owner access flow</h2>
+        <ol className="mb-5 list-inside list-decimal space-y-2 text-sm text-muted">
+          <li>Sign in with an account that has role <strong>OWNER</strong> (or ADMIN).</li>
+          <li>Open <strong>Infrastructure / Private sensors</strong> from the sidebar.</li>
+          <li>Verify your device topic appears in the table below.</li>
+          <li>Use <strong>Details</strong> to inspect live readings and health by topic.</li>
+          <li>Use <strong>Reports</strong> to download filtered data for your topics.</li>
+        </ol>
+
         <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
           <Radio className="h-5 w-5 text-brand-700" />
           Connect a private device
