@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Activity, AlertCircle, Settings, KeyRound, ScrollText } from 'lucide-react';
+import { Users, Activity, AlertCircle, Settings, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchHealth } from '@/app/lib/api';
 import { useReadingsQuery } from '@/app/hooks/useReadingsQuery';
@@ -17,7 +17,6 @@ import {
   rejectApiKeyRequest,
   revokeApiKey,
 } from '@/app/lib/api/apiKeys';
-import { getUsersApi } from '@/app/lib/api/users';
 import { DashboardPage } from '@/app/components/layout/DashboardPage';
 import { PageHeader } from '@/app/components/layout/PageHeader';
 import { StatCard } from '@/app/components/data/StatCard';
