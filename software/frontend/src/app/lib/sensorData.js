@@ -51,7 +51,9 @@ export function groupReadingsBySensor(rows) {
   }));
 }
 
-export { topicToLatLng, extractDeviceSlug, DSM_CENTER } from '@/app/lib/sensorLocations';
+import { topicToLatLng, extractDeviceSlug, DSM_CENTER, FRIENDLY_LABELS } from '@/app/lib/sensorLocations';
+
+export { topicToLatLng, extractDeviceSlug, DSM_CENTER, FRIENDLY_LABELS };
 
 export function sensorSummary(sensor) {
   const pm25 = getLatestValue(sensor.measurements, isPM25Measurement);
@@ -59,11 +61,19 @@ export function sensorSummary(sensor) {
   return { pm25, pm10, lastUpdate: sensor.lastUpdate };
 }
 
-/** Human-friendly label from MQTT topic / sensor id */
-export function formatSensorLabel(sensorId) {
-  const s = String(sensorId || '').trim();
-  if (!s) return 'Unknown sensor';
-  const parts = s.split(/[/\\]/).filter(Boolean);
-  const last = parts[parts.length - 1] || s;
-  return last.length > 48 ? `${last.slice(0, 45)}…` : last;
+/** Human-friendly label from registry name or MQTT topic slug */
+export function formatSensorLabel(sensorId, registryLabel) {
+  if (registryLabel && String(registryLabel).trim()) {
+    return String(registryLabel).trim();
+  }
+  const slug = extractDeviceSlug(sensorId);
+  if (FRIENDLY_LABELS[slug]) {
+    return FRIENDLY_LABELS[slug];
+  }
+  if (!slug) return 'Unknown sensor';
+  return slug
+    .split('-')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }

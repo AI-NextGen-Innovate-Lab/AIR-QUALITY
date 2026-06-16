@@ -10,6 +10,7 @@ import { InfluxService } from '../influx/influx.service.js';
 import { CreateSensorDto } from './dto/create-sensor.dto.js';
 import { UpdateSensorDto } from './dto/update-sensor.dto.js';
 import { Role, SensorVisibility } from '../../generated/prisma/client.js';
+import { labelFromTopic, coordsFromTopic } from './sensor-metadata.util.js';
 
 const sensorInclude = {
   owner: { select: { id: true, name: true, email: true, role: true } },
@@ -72,6 +73,46 @@ export class SensorsService {
     });
   }
 
+  findPublicMapMetadata() {
+    return this.prisma.sensor.findMany({
+      where: { visibility: SensorVisibility.PUBLIC },
+      orderBy: { label: 'asc' },
+      select: {
+        id: true,
+        topic: true,
+        label: true,
+        latitude: true,
+        longitude: true,
+        visibility: true,
+      },
+    });
+  }
+
+  findMapMetadataForUser(userId?: number, userRole?: string) {
+    if (userRole === 'OWNER' && userId) {
+      return this.prisma.sensor.findMany({
+        where: {
+          OR: [
+            { visibility: SensorVisibility.PUBLIC },
+            { ownerId: userId, visibility: SensorVisibility.PRIVATE },
+          ],
+        },
+        orderBy: { label: 'asc' },
+        select: {
+          id: true,
+          topic: true,
+          label: true,
+          latitude: true,
+          longitude: true,
+          visibility: true,
+          ownerId: true,
+        },
+      });
+    }
+
+    return this.findPublicMapMetadata();
+  }
+
   async findAvailable(hours = 168) {
     const registered = await this.prisma.sensor.findMany({ include: sensorInclude });
 
@@ -109,9 +150,9 @@ export class SensorsService {
         lastSeen: row.lastSeen,
         registered: !!reg,
         id: reg?.id ?? null,
-        label: reg?.label ?? null,
-        latitude: reg?.latitude ?? null,
-        longitude: reg?.longitude ?? null,
+        label: reg?.label ?? labelFromTopic(row.topic),
+        latitude: reg?.latitude ?? coordsFromTopic(row.topic)?.latitude ?? null,
+        longitude: reg?.longitude ?? coordsFromTopic(row.topic)?.longitude ?? null,
         visibility: reg?.visibility ?? null,
         ownerId: reg?.ownerId ?? null,
         owner: reg?.owner ?? null,
@@ -125,7 +166,7 @@ export class SensorsService {
           lastSeen: null,
           registered: true,
           id: reg.id,
-          label: reg.label,
+          label: reg.label ?? labelFromTopic(reg.topic),
           latitude: reg.latitude,
           longitude: reg.longitude,
           visibility: reg.visibility,
@@ -147,12 +188,18 @@ export class SensorsService {
     await this.validateOwner(dto.ownerId);
     this.validateVisibility(visibility, dto.ownerId);
 
+    const topic = dto.topic.trim();
+    const defaults = coordsFromTopic(topic);
+    const label = dto.label?.trim() || labelFromTopic(topic);
+    const latitude = dto.latitude ?? defaults?.latitude ?? null;
+    const longitude = dto.longitude ?? defaults?.longitude ?? null;
+
     const sensor = await this.prisma.sensor.create({
       data: {
-        topic: dto.topic.trim(),
-        label: dto.label?.trim() || null,
-        latitude: dto.latitude ?? null,
-        longitude: dto.longitude ?? null,
+        topic,
+        label,
+        latitude,
+        longitude,
         visibility,
         ownerId: dto.ownerId ?? null,
       },
@@ -181,13 +228,19 @@ export class SensorsService {
     await this.validateOwner(ownerId ?? undefined);
     this.validateVisibility(visibility, ownerId);
 
+    const topic = dto.topic?.trim() ?? existing.topic;
+    const defaults = coordsFromTopic(topic);
+
     const sensor = await this.prisma.sensor.update({
       where: { id },
       data: {
         topic: dto.topic?.trim(),
-        label: dto.label !== undefined ? dto.label?.trim() || null : undefined,
-        latitude: dto.latitude,
-        longitude: dto.longitude,
+        label:
+          dto.label !== undefined
+            ? dto.label?.trim() || labelFromTopic(topic)
+            : existing.label ?? labelFromTopic(topic),
+        latitude: dto.latitude ?? existing.latitude ?? defaults?.latitude ?? null,
+        longitude: dto.longitude ?? existing.longitude ?? defaults?.longitude ?? null,
         visibility,
         ownerId,
       },

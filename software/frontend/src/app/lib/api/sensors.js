@@ -8,6 +8,10 @@ export function fetchAvailableSensors(hours = 168) {
   return apiGet('/sensors/available', { hours });
 }
 
+export function fetchMapMetadata() {
+  return apiGet('/sensors/map-metadata');
+}
+
 export function fetchMySensors() {
   return apiGet('/sensors/mine');
 }

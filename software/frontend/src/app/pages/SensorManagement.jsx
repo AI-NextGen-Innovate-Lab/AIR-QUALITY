@@ -13,6 +13,7 @@ import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { LoadingBlock } from '@/app/components/data/DataState';
 import { inputClass, selectClass, labelClass } from '@/app/lib/dashboardStyles';
+import { formatSensorLabel } from '@/app/lib/sensorData';
 import { cn } from '@/app/lib/utils/cn';
 
 const HOUR_OPTIONS = [
@@ -137,6 +138,12 @@ export default function SensorManagement() {
   };
 
   const markVisibility = (sensor, visibility) => {
+    const label = sensor.label || formatSensorLabel(sensor.topic);
+    const defaults = {
+      topic: sensor.topic,
+      label,
+    };
+
     if (visibility === 'PRIVATE') {
       const ownerId = privateOwnerByTopic[sensor.topic] || sensor.ownerId;
       if (!ownerId) {
@@ -146,11 +153,11 @@ export default function SensorManagement() {
       if (sensor.registered && sensor.id) {
         updateMutation.mutate({
           id: sensor.id,
-          payload: { visibility: 'PRIVATE', ownerId: Number(ownerId) },
+          payload: { visibility: 'PRIVATE', ownerId: Number(ownerId), label },
         });
       } else {
         createMutation.mutate({
-          topic: sensor.topic,
+          ...defaults,
           visibility: 'PRIVATE',
           ownerId: Number(ownerId),
         });
@@ -161,10 +168,10 @@ export default function SensorManagement() {
     if (sensor.registered && sensor.id) {
       updateMutation.mutate({
         id: sensor.id,
-        payload: { visibility: 'PUBLIC', ownerId: null },
+        payload: { visibility: 'PUBLIC', ownerId: null, label },
       });
     } else {
-      createMutation.mutate({ topic: sensor.topic, visibility: 'PUBLIC' });
+      createMutation.mutate({ ...defaults, visibility: 'PUBLIC' });
     }
   };
 
@@ -362,11 +369,18 @@ export default function SensorManagement() {
                   <td className="px-4 py-3 font-mono text-xs text-foreground max-w-[14rem] truncate" title={sensor.topic}>
                     {sensor.label ? (
                       <>
-                        <span className="block font-sans text-sm text-foreground">{sensor.label}</span>
-                        <span className="text-muted">{sensor.topic}</span>
+                        <span className="block font-sans text-sm font-medium text-foreground">
+                          {formatSensorLabel(sensor.topic, sensor.label)}
+                        </span>
+                        <span className="text-muted font-normal">{sensor.topic}</span>
                       </>
                     ) : (
-                      sensor.topic
+                      <>
+                        <span className="block font-sans text-sm font-medium text-foreground">
+                          {formatSensorLabel(sensor.topic)}
+                        </span>
+                        <span className="text-muted">{sensor.topic}</span>
+                      </>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">

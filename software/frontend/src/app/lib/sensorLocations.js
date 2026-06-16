@@ -2,6 +2,14 @@
 export const DSM_CENTER = { lat: -6.7924, lng: 39.2083 };
 export const DSM_DEFAULT_ZOOM = 12;
 
+/** Friendly display names for known device slugs */
+export const FRIENDLY_LABELS = {
+  'lands-building': 'Lands Building',
+  'planing-building': 'Planning Building',
+  'planning-building': 'Planning Building',
+  'bme680-ph-dox-full-sensor-test': 'BME680 Test',
+};
+
 /**
  * Approximate coordinates for known TTN device ids (UDSM / project sites).
  * Update these when you have surveyed GPS for each sensor.
