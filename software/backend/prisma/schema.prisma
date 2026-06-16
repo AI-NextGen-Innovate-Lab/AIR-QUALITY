@@ -26,6 +26,25 @@ model User{
   reviewedApiKeyRequests ApiKeyRequest[] @relation("ReviewedApiKeyRequests")
   apiKeys ApiKey[] @relation("UserApiKeys")
   revokedApiKeys ApiKey[] @relation("RevokedApiKeys")
+  ownedSensors Sensor[] @relation("OwnedSensors")
+}
+
+enum SensorVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+model Sensor {
+  id         Int              @id @default(autoincrement())
+  topic      String           @unique
+  label      String?
+  latitude   Float?
+  longitude  Float?
+  visibility SensorVisibility @default(PUBLIC)
+  ownerId    Int?
+  owner      User?            @relation("OwnedSensors", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 }
 
 model ActivityLog{

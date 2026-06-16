@@ -17,10 +17,17 @@ export interface ClampedReadingsQuery {
   page: number;
   hours: number;
   sensorId?: string;
+  measurements?: string[];
 }
 
 export function clampReadingsQuery(
-  query: { limit?: string; page?: string; hours?: string; sensorId?: string },
+  query: {
+    limit?: string;
+    page?: string;
+    hours?: string;
+    sensorId?: string;
+    measurement?: string;
+  },
   tier: AccessTier,
 ): ClampedReadingsQuery {
   const limits = TIER_LIMITS[tier];
@@ -33,5 +40,11 @@ export function clampReadingsQuery(
     page: Math.max(Number.isNaN(pageRaw) ? 1 : pageRaw, 1),
     hours: Math.min(Math.max(Number.isNaN(hoursRaw) ? 24 : hoursRaw, 1), limits.maxHours),
     sensorId: query.sensorId?.trim() || undefined,
+    measurements: query.measurement
+      ? query.measurement
+          .split(',')
+          .map((m) => m.trim())
+          .filter(Boolean)
+      : undefined,
   };
 }

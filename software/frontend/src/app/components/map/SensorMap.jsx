@@ -29,7 +29,7 @@ export function SensorMap({
     () =>
       sensors.map((sensor) => ({
         ...sensor,
-        label: formatSensorLabel(sensor.id),
+        label: sensor.label || formatSensorLabel(sensor.id),
         icon: createAqiIcon(
           sensor.aqi,
           sensor.category,

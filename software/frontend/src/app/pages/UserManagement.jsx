@@ -132,6 +132,7 @@ function UserManagement() {
                   className={selectClass}
                 >
                   <option value="USER">User</option>
+                  <option value="OWNER">Sensor owner</option>
                   <option value="ADMIN">Admin</option>
                 </select>
               </div>

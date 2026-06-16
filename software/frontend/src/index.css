@@ -9,14 +9,14 @@
   --color-brand-700: #0f766e;
   --color-brand-800: #115e59;
 
-  /* Surfaces & text — dark theme default */
-  --color-surface: #09090b;
-  --color-surface-elevated: #18181b;
-  --color-foreground: #fafafa;
-  --color-muted: #a1a1aa;
-  --color-muted-foreground: #71717a;
-  --color-border: #27272a;
-  --color-border-strong: #3f3f46;
+  /* Surfaces & text — soft light theme (readable contrast) */
+  --color-surface: #f8fafc;
+  --color-surface-elevated: #ffffff;
+  --color-foreground: #0f172a;
+  --color-muted: #475569;
+  --color-muted-foreground: #64748b;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
 
   /* AQI semantic (EPA scale — data only) */
   --color-aqi-good: #22c55e;

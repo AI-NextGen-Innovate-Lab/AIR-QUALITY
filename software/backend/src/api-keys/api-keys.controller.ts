@@ -17,6 +17,23 @@ import { RejectApiKeyRequestDto } from './dto/reject-api-key-request.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { ApiKeyRequestStatus, ApiKeyStatus } from '../../generated/prisma/client.js';
+
+function parseRequestStatus(status?: string): ApiKeyRequestStatus | undefined {
+  if (!status) return undefined;
+  if (Object.values(ApiKeyRequestStatus).includes(status as ApiKeyRequestStatus)) {
+    return status as ApiKeyRequestStatus;
+  }
+  return undefined;
+}
+
+function parseKeyStatus(status?: string): ApiKeyStatus | undefined {
+  if (!status) return undefined;
+  if (Object.values(ApiKeyStatus).includes(status as ApiKeyStatus)) {
+    return status as ApiKeyStatus;
+  }
+  return undefined;
+}
 
 @Controller('api-keys')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -38,16 +55,16 @@ export class ApiKeysController {
   }
 
   @Get('requests')
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   getRequests(@Query('status') status?: string) {
     if (status === 'PENDING') {
       return this.apiKeysService.getPendingRequests();
     }
-    return this.apiKeysService.getAllRequests(status);
+    return this.apiKeysService.getAllRequests(parseRequestStatus(status));
   }
 
   @Post('requests/:id/approve')
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   approveRequest(
     @Param('id') id: string,
     @Request() req: { user: { id: number } },
@@ -56,7 +73,7 @@ export class ApiKeysController {
   }
 
   @Post('requests/:id/reject')
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   rejectRequest(
     @Param('id') id: string,
     @Request() req: { user: { id: number } },
@@ -65,15 +82,28 @@ export class ApiKeysController {
     return this.apiKeysService.rejectRequest(+id, req.user.id, dto.reviewNote);
   }
 
+  @Get('mine/deliveries')
+  getMyKeyDeliveries(@Request() req: { user: { id: number } }) {
+    return this.apiKeysService.getMyKeyDeliveries(req.user.id);
+  }
+
   @Get('mine')
   getMyKeys(@Request() req: { user: { id: number } }) {
     return this.apiKeysService.getMyKeys(req.user.id);
   }
 
+  @Get(':id/secret')
+  getKeySecret(
+    @Param('id') id: string,
+    @Request() req: { user: { id: number } },
+  ) {
+    return this.apiKeysService.getDeliveredKey(+id, req.user.id);
+  }
+
   @Get()
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   getAllKeys(@Query('status') status?: string) {
-    return this.apiKeysService.getAllKeys(status);
+    return this.apiKeysService.getAllKeys(parseKeyStatus(status));
   }
 
   @Post(':id/revoke')
@@ -89,6 +119,6 @@ export class ApiKeysController {
     @Param('id') id: string,
     @Request() req: { user: { id: number; role: string } },
   ) {
-    return this.apiKeysService.revokeKey(+id, req.user.id, req.user.role);
+    return this.apiKeysService.removeKey(+id, req.user.id, req.user.role);
   }
 }

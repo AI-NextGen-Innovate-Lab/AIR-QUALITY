@@ -1,13 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchReadings } from '@/app/lib/api';
-import { calculateAQI, getAQICategory } from '@/app/lib/airQuality';
-import {
-  groupReadingsBySensor,
-  sensorSummary,
-  topicToLatLng,
-  formatSensorLabel,
-} from '@/app/lib/sensorData';
+import { fetchMapMetadata } from '@/app/lib/api/sensors';
+import { useAuth } from '@/app/context/AuthContext';
+import { groupReadingsBySensor, formatSensorLabel } from '@/app/lib/sensorData';
+import { enrichSensorsForMap, registryOnlyMapMarkers } from '@/app/lib/sensorMapUtils';
 import { SensorMap } from '@/app/components/map/SensorMap';
 import { PageSection } from '@/app/components/layout/PageSection';
 import { LoadingBlock, ErrorBlock, EmptyBlock } from '@/app/components/data/DataState';
@@ -17,8 +14,10 @@ import { cn } from '@/app/lib/utils/cn';
 
 export function MapPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [selectedSensor, setSelectedSensor] = useState(null);
   const [sensors, setSensors] = useState([]);
+  const [registry, setRegistry] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -28,9 +27,13 @@ export function MapPage() {
       setLoading(true);
       setError(null);
       try {
-        const json = await fetchReadings({ limit: 1000, page: 1 });
+        const [json, meta] = await Promise.all([
+          fetchReadings({ limit: 1000, page: 1 }),
+          fetchMapMetadata(),
+        ]);
         if (cancelled) return;
         setSensors(groupReadingsBySensor(json.data || []));
+        setRegistry(Array.isArray(meta) ? meta : []);
       } catch (e) {
         if (!cancelled) setError(e.message || 'Failed to load readings');
       } finally {
@@ -40,26 +43,13 @@ export function MapPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user?.id, user?.role]);
 
-  const sensorsWithCoords = useMemo(
-    () =>
-      [...sensors]
-        .map((s) => {
-          const { lat, lng } = topicToLatLng(s.id);
-          const { pm25, pm10 } = sensorSummary(s);
-          const aqi = calculateAQI(pm25, pm10).value;
-          return {
-            ...s,
-            lat,
-            lng,
-            aqi,
-            category: getAQICategory(aqi),
-          };
-        })
-        .sort((a, b) => b.aqi - a.aqi),
-    [sensors]
-  );
+  const sensorsWithCoords = useMemo(() => {
+    const withData = enrichSensorsForMap(sensors, registry);
+    const withoutData = registryOnlyMapMarkers(registry, sensors);
+    return [...withData, ...withoutData].sort((a, b) => (b.aqi ?? 0) - (a.aqi ?? 0));
+  }, [sensors, registry]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
@@ -101,7 +91,7 @@ export function MapPage() {
               {sensorsWithCoords.map((sensor) => {
                 const { category } = sensor;
                 const isSelected = selectedSensor === sensor.id;
-                const label = formatSensorLabel(sensor.id);
+                const label = sensor.label || formatSensorLabel(sensor.id);
 
                 return (
                   <div
