@@ -32,10 +32,6 @@ export function fetchAllApiKeys(status) {
   return apiGet('/api-keys', status ? { status } : {});
 }
 
-export function fetchMyKeyDeliveries() {
-  return apiGet('/api-keys/mine/deliveries');
-}
-
 export function fetchApiKeySecret(id) {
   return apiGet(`/api-keys/${id}/secret`);
 }

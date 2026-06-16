@@ -14,8 +14,8 @@ import {
   createApiKeyRequest,
   fetchMyApiKeyRequests,
   fetchMyApiKeys,
-  fetchApiKeySecret,
-  revokeApiKey,
+  fetchMyKeyDeliveries,
+  deleteApiKey,
 } from '@/app/lib/api/apiKeys';
 
 const STORAGE_KEY = 'aqm_api_key_secrets';
@@ -61,42 +61,52 @@ export default function ApiAccess() {
   const [copiedId, setCopiedId] = useState(null);
   const [visibleKeys, setVisibleKeys] = useState({});
   const [secrets, setSecrets] = useState(loadStoredSecrets);
+  const [newKeyModal, setNewKeyModal] = useState(null);
 
   const requestsQuery = useQuery({
     queryKey: ['api-key-requests', 'mine'],
     queryFn: fetchMyApiKeyRequests,
+    refetchInterval: (query) => {
+      const hasApproved = query.state.data?.some((r) => r.status === 'APPROVED');
+      return hasApproved ? 5000 : false;
+    },
   });
 
   const keysQuery = useQuery({
     queryKey: ['api-keys', 'mine'],
     queryFn: fetchMyApiKeys,
+    refetchInterval: 15000,
+  });
+
+  const deliveriesQuery = useQuery({
+    queryKey: ['api-keys', 'deliveries'],
+    queryFn: fetchMyKeyDeliveries,
+    refetchInterval: 5000,
   });
 
   useEffect(() => {
-    const keys = keysQuery.data?.filter((k) => k.status === 'ACTIVE') ?? [];
-    if (!keys.length) return;
+    const deliveries = deliveriesQuery.data ?? [];
+    if (!deliveries.length) return;
 
-    let cancelled = false;
-    (async () => {
-      const stored = loadStoredSecrets();
-      for (const key of keys) {
-        if (stored[key.id]) continue;
-        try {
-          const res = await fetchApiKeySecret(key.id);
-          if (!cancelled && res?.key) {
-            saveStoredSecret(key.id, res.key);
-            setSecrets((prev) => ({ ...prev, [key.id]: res.key }));
-          }
-        } catch {
-          /* no delivery available */
-        }
+    const stored = loadStoredSecrets();
+    let newest = null;
+
+    for (const item of deliveries) {
+      if (!stored[item.id]) {
+        saveStoredSecret(item.id, item.key);
+        newest = item;
       }
-    })();
+    }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [keysQuery.data]);
+    if (newest) {
+      setSecrets((prev) => ({ ...prev, [newest.id]: newest.key }));
+      setNewKeyModal(newest.key);
+      setVisibleKeys((prev) => ({ ...prev, [newest.id]: true }));
+      toast.success('Your API key is ready — copy it now.');
+    } else {
+      setSecrets(loadStoredSecrets());
+    }
+  }, [deliveriesQuery.data]);
 
   const requestMutation = useMutation({
     mutationFn: (text) => createApiKeyRequest(text),
@@ -108,10 +118,10 @@ export default function ApiAccess() {
     onError: (e) => toast.error(e.message),
   });
 
-  const revokeMutation = useMutation({
-    mutationFn: revokeApiKey,
+  const deleteMutation = useMutation({
+    mutationFn: deleteApiKey,
     onSuccess: (_, keyId) => {
-      toast.success('API key deleted');
+      toast.success('API key permanently deleted');
       removeStoredSecret(keyId);
       setSecrets((prev) => {
         const next = { ...prev };
@@ -119,14 +129,19 @@ export default function ApiAccess() {
         return next;
       });
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+      queryClient.invalidateQueries({ queryKey: ['api-key-requests'] });
     },
     onError: (e) => toast.error(e.message),
   });
 
   const pending = requestsQuery.data?.some((r) => r.status === 'PENDING');
+  const approvedAwaitingKey = requestsQuery.data?.some(
+    (r) => r.status === 'APPROVED' && !keysQuery.data?.length
+  );
   const allKeys = keysQuery.data ?? [];
 
   const copyText = async (text, id) => {
+    if (!text) return;
     await navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -140,8 +155,16 @@ export default function ApiAccess() {
       <PageHeader
         badge="Developer"
         title="API Access"
-        description="Request an API key, copy it, and call the readings API from your apps or scripts."
+        description="Request an API key, copy it here after approval, and use it in your apps or scripts."
       />
+
+      {approvedAwaitingKey && (
+        <Card className="mb-6 border-brand-300 bg-brand-50">
+          <CardContent className="py-3 text-sm text-brand-800">
+            Your request was approved. Your full API key will appear below within a few seconds.
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
         {TIER_INFO.map((t) => (
@@ -165,8 +188,8 @@ export default function ApiAccess() {
             Request access
           </h3>
           <p className="mb-4 text-sm text-muted">
-            Describe your use case. An administrator will review and issue a key. After approval,
-            return here to copy your full key (available for 7 days).
+            Submit a request for an administrator to review. Once approved, your full key appears
+            on this page only — not in the admin panel.
           </p>
           <textarea
             value={purpose}
@@ -201,6 +224,7 @@ export default function ApiAccess() {
               {allKeys.map((key) => {
                 const fullKey = displayKey(key);
                 const isVisible = visibleKeys[key.id];
+                const isActive = key.status === 'ACTIVE';
                 const masked = fullKey
                   ? `${fullKey.slice(0, 8)}${'•'.repeat(12)}${fullKey.slice(-4)}`
                   : `${key.keyPrefix}••••••••`;
@@ -226,64 +250,67 @@ export default function ApiAccess() {
                       <Badge variant={statusVariant(key.status)}>{key.status}</Badge>
                     </div>
 
-                    <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-surface-elevated px-3 py-2">
-                      <code className="flex-1 break-all font-mono text-xs text-foreground">
-                        {fullKey && isVisible ? fullKey : masked}
-                      </code>
-                      {fullKey && (
+                    {isActive && (
+                      <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-surface-elevated px-3 py-2">
+                        <code className="flex-1 break-all font-mono text-xs text-foreground">
+                          {fullKey && isVisible ? fullKey : masked}
+                        </code>
+                        {fullKey && (
+                          <button
+                            type="button"
+                            className="text-muted hover:text-foreground"
+                            onClick={() =>
+                              setVisibleKeys((prev) => ({ ...prev, [key.id]: !prev[key.id] }))
+                            }
+                            title={isVisible ? 'Hide key' : 'Show key'}
+                          >
+                            {isVisible ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className="text-muted hover:text-foreground"
-                          onClick={() =>
-                            setVisibleKeys((prev) => ({ ...prev, [key.id]: !prev[key.id] }))
-                          }
-                          title={isVisible ? 'Hide key' : 'Show key'}
+                          className="text-muted hover:text-foreground disabled:opacity-40"
+                          onClick={() => copyText(fullKey, key.id)}
+                          title="Copy full key"
+                          disabled={!fullKey}
                         >
-                          {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {copiedId === key.id ? (
+                            <Check className="h-4 w-4 text-aqi-good" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        className="text-muted hover:text-foreground"
-                        onClick={() => copyText(fullKey || key.keyPrefix, key.id)}
-                        title="Copy key"
-                        disabled={key.status !== 'ACTIVE'}
-                      >
-                        {copiedId === key.id ? (
-                          <Check className="h-4 w-4 text-aqi-good" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
+                      </div>
+                    )}
 
-                    {!fullKey && key.status === 'ACTIVE' && (
+                    {!fullKey && isActive && (
                       <p className="mt-2 text-xs text-muted">
-                        Full key not stored on this device. If recently approved, refresh this page.
-                        Otherwise contact an administrator — keys cannot be recovered after 7 days.
+                        Waiting for key delivery… Refresh this page if you were just approved.
                       </p>
                     )}
 
-                    {key.status === 'ACTIVE' && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="mt-3"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              'Delete this API key? Apps using it will stop working immediately.'
-                            )
-                          ) {
-                            revokeMutation.mutate(key.id);
-                          }
-                        }}
-                        disabled={revokeMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete key
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="mt-3"
+                      onClick={() => {
+                        const label =
+                          key.status === 'REVOKED'
+                            ? 'Remove this revoked key from your list?'
+                            : 'Permanently delete this API key? Apps using it will stop working.';
+                        if (window.confirm(label)) {
+                          deleteMutation.mutate(key.id);
+                        }
+                      }}
+                      disabled={deleteMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {key.status === 'REVOKED' ? 'Remove' : 'Delete key'}
+                    </Button>
                   </li>
                 );
               })}
@@ -299,8 +326,8 @@ export default function ApiAccess() {
         </h3>
         <div className="space-y-4 text-sm text-muted">
           <p>
-            Send your key in the <code className="text-foreground">X-API-Key</code> header on every
-            request. API keys unlock the highest tier: up to 5,000 rows and 30 days of history.
+            After approval, copy your key from <strong>My API keys</strong> above. Send it in the{' '}
+            <code className="text-foreground">X-API-Key</code> header on every request.
           </p>
           <div>
             <p className="mb-2 font-medium text-foreground">cURL example</p>
@@ -318,23 +345,10 @@ export default function ApiAccess() {
 const { data } = await res.json();`}
             </pre>
           </div>
-          <div>
-            <p className="mb-2 font-medium text-foreground">Python (requests)</p>
-            <pre className="overflow-x-auto rounded-xl border border-border bg-surface p-4 text-xs text-foreground">
-{`import requests
-r = requests.get(
-    "${API_BASE}/readings",
-    params={"hours": 168, "limit": 500},
-    headers={"X-API-Key": "YOUR_API_KEY_HERE"},
-)
-print(r.json())`}
-            </pre>
-          </div>
           <ul className="list-inside list-disc space-y-1">
+            <li>Only you can see and copy your full key — admins cannot.</li>
             <li>Never commit API keys to Git or share them publicly.</li>
-            <li>Use <code className="text-foreground">sensorId</code> to filter one device topic.</li>
-            <li>Use <code className="text-foreground">measurement</code> to filter PM2.5, PM10, etc.</li>
-            <li>Delete and request a new key if you suspect it was exposed.</li>
+            <li>Delete revoked keys to clear them from your list.</li>
           </ul>
         </div>
       </div>
@@ -359,6 +373,11 @@ print(r.json())`}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-foreground">{req.purpose}</p>
+                {req.status === 'APPROVED' && (
+                  <p className="mt-1 text-xs text-brand-700">
+                    Approved — copy your key from My API keys above.
+                  </p>
+                )}
                 {req.reviewNote && (
                   <p className="mt-1 text-xs text-muted">Note: {req.reviewNote}</p>
                 )}
@@ -367,6 +386,37 @@ print(r.json())`}
           </ul>
         )}
       </div>
+
+      {newKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-surface-elevated p-6">
+            <h3 className="text-lg font-semibold text-foreground">Your API key is ready</h3>
+            <p className="mt-2 text-sm text-muted">
+              Copy this key now. It is only shown here on your account — administrators cannot see it.
+            </p>
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-border bg-surface p-3 font-mono text-sm text-brand-700">
+              <span className="flex-1 break-all">{newKeyModal}</span>
+              <button
+                type="button"
+                onClick={() => copyText(newKeyModal, 'modal')}
+                className="shrink-0 text-muted hover:text-foreground"
+              >
+                {copiedId === 'modal' ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            <p className="mt-3 text-xs text-muted">
+              Header: <code className="text-foreground">X-API-Key: your-key-here</code>
+            </p>
+            <Button className="mt-4 w-full" onClick={() => setNewKeyModal(null)}>
+              I have copied my key
+            </Button>
+          </div>
+        </div>
+      )}
 
       <p className="mt-8 text-center text-sm text-muted">
         Full reference:{' '}
