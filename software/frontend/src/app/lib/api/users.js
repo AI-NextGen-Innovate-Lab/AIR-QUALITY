@@ -57,9 +57,13 @@ export const getUsersApi = {
     }
   },
 
-  async getAuditLogs(limit = 100) {
+  async getAuditLogs({ limit = 100, days, from, to } = {}) {
     try {
-      return await apiGet(`${API_BASE}/audit-logs`, { limit });
+      const params = { limit };
+      if (days != null) params.days = days;
+      if (from) params.from = from;
+      if (to) params.to = to;
+      return await apiGet(`${API_BASE}/audit-logs`, params);
     } catch (error) {
       console.error('Failed to fetch audit logs:', error);
       throw error;

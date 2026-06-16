@@ -261,9 +261,9 @@ export class ApiKeysService {
       throw new NotFoundException('API key not found');
     }
 
-    const isAdmin = actorRole === 'ADMIN' || actorRole === 'OWNER';
-    if (apiKey.userId !== actorId && !isAdmin) {
-      throw new ForbiddenException('You cannot revoke this API key');
+    const isAdmin = actorRole === 'ADMIN';
+    if (!isAdmin) {
+      throw new ForbiddenException('Only administrators can revoke API keys');
     }
 
     if (apiKey.status === ApiKeyStatus.REVOKED) {

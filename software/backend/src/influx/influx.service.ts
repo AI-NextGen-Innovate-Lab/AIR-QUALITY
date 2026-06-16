@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, Inject } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Inject, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
@@ -8,6 +8,9 @@ import {
   ClampedReadingsQuery,
   TIER_LIMITS,
 } from '../access/tiered-access.types.js';
+import { SensorPrivacyService } from '../sensors/sensor-privacy.service.js';
+import { SensorVisibility } from '../../generated/prisma/client.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 @Injectable()
 export class InfluxService {
@@ -16,6 +19,8 @@ export class InfluxService {
   constructor(
     private configService: ConfigService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private sensorPrivacy: SensorPrivacyService,
+    private prisma: PrismaService,
   ) {
     const rawUrl =
       this.configService.get<string>('INFLUX_URL') ?? this.configService.get<string>('DB_URL');
@@ -93,16 +98,87 @@ export class InfluxService {
     };
   }
 
-  async getReadings(query: ClampedReadingsQuery, tier: AccessTier = 'PUBLIC') {
+  async getDistinctTopics(hours = 168): Promise<Array<{ topic: string; lastSeen: string }>> {
+    const org = this.configService.get<string>('INFLUX_ORG') ?? this.configService.get<string>('DB_ORG');
+    const bucket =
+      this.configService.get<string>('INFLUX_BUCKET') ?? this.configService.get<string>('DB_BUCKET');
+
+    if (!org || !bucket) {
+      throw new InternalServerErrorException(
+        'INFLUX_ORG/INFLUX_BUCKET (or DB_ORG/DB_BUCKET) must be configured',
+      );
+    }
+
+    const safeHours = Math.min(Math.max(Number(hours) || 168, 1), 720);
+    const queryApi = this.influxDB.getQueryApi(org);
+
+    const fluxQuery = `
+      from(bucket: "${bucket}")
+        |> range(start: -${safeHours}h)
+        |> filter(fn: (r) => exists r.topic and r.topic != "")
+        |> group(columns: ["topic"])
+        |> last(column: "_time")
+        |> group()
+    `;
+
+    const topics: Array<{ topic: string; lastSeen: string }> = [];
+
+    return new Promise((resolve, reject) => {
+      queryApi.queryRows(fluxQuery, {
+        next: (row, tableMeta) => {
+          const data = tableMeta.toObject(row) as Record<string, unknown>;
+          const topic = String(data.topic ?? '').trim();
+          if (!topic) return;
+          const lastSeen = data._time ?? data.time;
+          topics.push({
+            topic,
+            lastSeen: lastSeen ? new Date(String(lastSeen)).toISOString() : new Date().toISOString(),
+          });
+        },
+        error: (error) => {
+          reject(
+            new InternalServerErrorException({
+              error: error?.message ?? String(error),
+              suggestion: 'Failed to list sensor topics from Influx.',
+            }),
+          );
+        },
+        complete: () => {
+          topics.sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
+          resolve(topics);
+        },
+      });
+    });
+  }
+
+  async getReadings(
+    query: ClampedReadingsQuery,
+    tier: AccessTier = 'PUBLIC',
+    userId?: number,
+  ) {
+    if (query.sensorId) {
+      const sensor = await this.prisma.sensor.findUnique({
+        where: { topic: query.sensorId },
+        select: { visibility: true, ownerId: true },
+      });
+      if (
+        sensor?.visibility === SensorVisibility.PRIVATE &&
+        (!userId || sensor.ownerId !== userId)
+      ) {
+        throw new ForbiddenException('Access denied to private sensor readings');
+      }
+    }
+
     const measurementKey = query.measurements?.join('|') ?? 'all-metrics';
     const cacheKey = `readings:${tier}:${query.hours}:${query.sensorId ?? 'all'}:${measurementKey}:${query.page}:${query.limit}`;
-    const cached = await this.cacheManager.get<{
-      data: Array<{
-        id: string;
-        measurement: string;
-        value: number | string | null;
-        time: unknown;
-      }>;
+    type ReadingRow = {
+      id: string;
+      measurement: string;
+      value: number | string | null;
+      time: unknown;
+    };
+    type CachedPayload = {
+      data: ReadingRow[];
       pagination: {
         limit: number;
         page: number;
@@ -110,10 +186,19 @@ export class InfluxService {
         count: number;
         tier: AccessTier;
       };
-    }>(cacheKey);
+    };
+
+    const cached = await this.cacheManager.get<CachedPayload>(cacheKey);
 
     if (cached) {
-      return cached;
+      const filtered = await this.sensorPrivacy.filterReadings(cached.data, userId);
+      return {
+        data: filtered,
+        pagination: {
+          ...cached.pagination,
+          count: filtered.length,
+        },
+      };
     }
 
     const org = this.configService.get<string>('INFLUX_ORG') ?? this.configService.get<string>('DB_ORG');
@@ -182,7 +267,7 @@ export class InfluxService {
           );
         },
         complete: async () => {
-          const payload = {
+          const payload: CachedPayload = {
             data: results,
             pagination: {
               limit: safeLimit,
@@ -197,7 +282,14 @@ export class InfluxService {
             payload,
             TIER_LIMITS[tier].cacheTtlMs,
           );
-          resolve(payload);
+          const filtered = await this.sensorPrivacy.filterReadings(results, userId);
+          resolve({
+            data: filtered,
+            pagination: {
+              ...payload.pagination,
+              count: filtered.length,
+            },
+          });
         },
       });
     });

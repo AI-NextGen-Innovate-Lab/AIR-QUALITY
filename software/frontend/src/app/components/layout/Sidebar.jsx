@@ -7,7 +7,6 @@ import {
   RadioTower,
   KeyRound,
   BookOpen,
-  Download,
   Settings,
   Users,
   ClipboardCheck,
@@ -24,21 +23,21 @@ import logo from '@/assets/logo.jpg';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Overview', icon: LayoutDashboard, roles: null },
-  { path: '/user-dashboard', label: 'Analytics', icon: BarChart3, roles: ['user', 'admin', 'owner'] },
+  { path: '/user-dashboard', label: 'Analytics & Reports', icon: BarChart3, roles: ['user', 'admin', 'owner'] },
   { path: '/map', label: 'Live Map', icon: Map, roles: null },
   { path: '/sensor-status', label: 'Sensors', icon: RadioTower, roles: ['admin', 'owner'] },
   { path: '/api-access', label: 'API Access', icon: KeyRound, roles: ['user', 'admin', 'owner'] },
   { path: '/api-docs', label: 'Documentation', icon: BookOpen, roles: null },
-  { path: '/download', label: 'Reports', icon: Download, roles: ['user', 'admin', 'owner'] },
   { path: '/profile', label: 'Settings', icon: Settings, roles: ['user', 'admin', 'owner'] },
 ];
 
 const ADMIN_ITEMS = [
   { path: '/admin', label: 'Users', icon: Users, tab: 'users', roles: ['admin', 'owner'] },
+  { path: '/admin', label: 'Sensors', icon: RadioTower, tab: 'sensors', roles: ['admin'] },
   { path: '/admin', label: 'API Requests', icon: ClipboardCheck, tab: 'requests', roles: ['admin', 'owner'] },
   { path: '/admin', label: 'API Keys', icon: Shield, tab: 'api', roles: ['admin', 'owner'] },
   { path: '/admin', label: 'System Health', icon: ScrollText, tab: 'system', roles: ['admin', 'owner'] },
-  { path: '/private-sensors', label: 'Infrastructure', icon: RadioTower, roles: ['owner', 'admin'] },
+  { path: '/private-sensors', label: 'My sensors', icon: RadioTower, roles: ['owner'] },
 ];
 
 function NavItem({ item, currentPath, collapsed, onNavigate }) {

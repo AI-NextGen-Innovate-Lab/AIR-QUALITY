@@ -1,7 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useReadings } from '@/app/hooks/useReadings';
 import { groupReadingsBySensor, sensorSummary } from '@/app/lib/sensorData';
+import { fetchMySensors } from '@/app/lib/api/sensors';
 import { Radio } from 'lucide-react';
 import { DashboardPage } from '@/app/components/layout/DashboardPage';
 import { PageHeader } from '@/app/components/layout/PageHeader';
@@ -11,20 +13,30 @@ import { panel } from '@/app/lib/dashboardStyles';
 import { calculateAQI } from '@/app/lib/airQuality';
 
 export default function PrivateSensor() {
+  const sensorsQuery = useQuery({
+    queryKey: ['sensors', 'mine'],
+    queryFn: fetchMySensors,
+  });
+
+  const assignedTopics = (sensorsQuery.data ?? []).map((s) => s.topic);
+
   const { loading, error, data: rows } = useReadings({
     limit: 2500,
     page: 1,
     hours: 168,
   });
 
-  const sensors = groupReadingsBySensor(rows);
+  const sensors = groupReadingsBySensor(rows).filter((s) =>
+    assignedTopics.includes(s.id)
+  );
+  const registry = sensorsQuery.data ?? [];
 
   return (
     <DashboardPage>
       <PageHeader
         badge="Private network"
         title="Private sensors"
-        description="MQTT topics that have reported in the last 7 days. Connect new devices via TTN or your broker."
+        description="Sensors assigned to your account. Only you can view measurements from private devices."
       />
 
       {error && <ErrorBlock message={error} className="mb-6" />}
@@ -32,11 +44,10 @@ export default function PrivateSensor() {
       <div className={panel('mb-8')}>
         <h2 className="mb-3 text-lg font-semibold text-foreground">Owner access flow</h2>
         <ol className="mb-5 list-inside list-decimal space-y-2 text-sm text-muted">
-          <li>Sign in with an account that has role <strong>OWNER</strong> (or ADMIN).</li>
-          <li>Open <strong>Infrastructure / Private sensors</strong> from the sidebar.</li>
-          <li>Verify your device topic appears in the table below.</li>
-          <li>Use <strong>Details</strong> to inspect live readings and health by topic.</li>
-          <li>Use <strong>Reports</strong> to download filtered data for your topics.</li>
+          <li>An administrator registers your device topic and assigns it to your account.</li>
+          <li>Private sensors appear here once data is flowing into Influx.</li>
+          <li>Use <strong>Analytics & Reports</strong> to chart and export your sensor data.</li>
+          <li>Other users — including administrators — cannot see your private measurements.</li>
         </ol>
 
         <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
@@ -60,14 +71,21 @@ export default function PrivateSensor() {
 
       <div className={panel()}>
         <h2 className="mb-4 text-lg font-semibold text-foreground">
-          Topics (last 7 days)
+          Assigned sensors
         </h2>
-        {loading ? (
+        {sensorsQuery.isLoading ? (
+          <LoadingBlock message="Loading assigned sensors…" />
+        ) : registry.length === 0 ? (
+          <EmptyBlock
+            title="No sensors assigned"
+            description="Ask an administrator to register your device and assign it to your account."
+          />
+        ) : loading ? (
           <LoadingBlock message="Loading topics…" />
         ) : sensors.length === 0 ? (
           <EmptyBlock
-            title="No topics in this window"
-            description="Publish sensor data to MQTT and verify Influx ingestion."
+            title="No recent readings"
+            description="Your sensors are registered but have not reported in the last 7 days."
           />
         ) : (
           <div className="overflow-x-auto">

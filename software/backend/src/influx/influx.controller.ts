@@ -16,14 +16,19 @@ export class InfluxController {
     @Query('sensorId') sensorId?: string,
     @Query('sensor') sensor?: string,
     @Query('measurement') measurement?: string,
-    @Request() req?: { accessTier?: AccessTier },
+    @Request() req?: {
+      accessTier?: AccessTier;
+      user?: { id: number };
+      apiKey?: { userId: number };
+    },
   ) {
     const tier = req?.accessTier ?? 'PUBLIC';
+    const userId = req?.user?.id ?? req?.apiKey?.userId;
     const clamped = clampReadingsQuery(
       { limit, page, hours, sensorId: sensorId ?? sensor, measurement },
       tier,
     );
-    return this.influxService.getReadings(clamped, tier);
+    return this.influxService.getReadings(clamped, tier, userId);
   }
 
   @Get('health')

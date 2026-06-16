@@ -27,6 +27,9 @@ import { cn } from '@/app/lib/utils/cn';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import UserManagement from './UserManagement';
+import SensorManagement from './SensorManagement';
+import AuditLogsPanel from './AuditLogsPanel';
+import { useAuth } from '@/app/context/AuthContext';
 
 function pill(text, variant = 'neutral') {
   const cls =
@@ -43,6 +46,8 @@ function pill(text, variant = 'neutral') {
 }
 
 export default function AdminPanel() {
+  const { user } = useAuth();
+  const isAdmin = String(user?.role || '').toUpperCase() === 'ADMIN';
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'overview';
   const setTab = (id) => setSearchParams({ tab: id });
@@ -68,10 +73,6 @@ export default function AdminPanel() {
   const keysQuery = useQuery({
     queryKey: ['api-keys', 'all'],
     queryFn: () => fetchAllApiKeys('ACTIVE'),
-  });
-  const auditLogsQuery = useQuery({
-    queryKey: ['audit-logs'],
-    queryFn: () => getUsersApi.getAuditLogs(200),
   });
 
   const approveMutation = useMutation({
@@ -133,6 +134,7 @@ export default function AdminPanel() {
           { id: 'overview', label: 'Overview' },
           { id: 'requests', label: 'API Requests' },
           { id: 'users', label: 'Users' },
+          ...(isAdmin ? [{ id: 'sensors', label: 'Sensors' }] : []),
           { id: 'api', label: 'API Keys' },
           { id: 'audit', label: 'Audit logs' },
           { id: 'system', label: 'System' },
@@ -210,6 +212,13 @@ export default function AdminPanel() {
         </div>
       )}
 
+      {tab === 'sensors' && isAdmin && (
+        <div className={panel()}>
+          <h3 className="mb-6 text-lg font-semibold text-foreground">Sensor registry</h3>
+          <SensorManagement />
+        </div>
+      )}
+
       {tab === 'api' && (
         <div className={panel()}>
           <h3 className="mb-4 text-lg font-semibold text-foreground">API keys</h3>
@@ -245,6 +254,7 @@ export default function AdminPanel() {
                         {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : '—'}
                       </td>
                       <td className="py-3">
+                        {isAdmin && (
                         <Button
                           size="sm"
                           variant="secondary"
@@ -256,6 +266,7 @@ export default function AdminPanel() {
                         >
                           Revoke
                         </Button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -266,57 +277,7 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {tab === 'audit' && (
-        <div className={panel()}>
-          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-            <ScrollText className="h-5 w-5 text-brand-700" />
-            System audit logs
-          </h3>
-          <p className="mb-4 text-sm text-muted">
-            Tracks authentication, API key actions, and admin user-management events.
-          </p>
-          {auditLogsQuery.isLoading ? (
-            <p className="text-sm text-muted">Loading audit logs…</p>
-          ) : !auditLogsQuery.data?.length ? (
-            <p className="py-8 text-center text-muted">No activity logs found</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border text-muted">
-                    <th className="py-2 pr-4">Time</th>
-                    <th className="py-2 pr-4">Action</th>
-                    <th className="py-2 pr-4">Actor</th>
-                    <th className="py-2 pr-4">Description</th>
-                    <th className="py-2">Metadata</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {auditLogsQuery.data.map((log) => (
-                    <tr key={log.id} className="border-b border-border/50 align-top">
-                      <td className="py-3 pr-4 text-xs text-muted">
-                        {new Date(log.createdAt).toLocaleString()}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <Badge variant="secondary">{log.action}</Badge>
-                      </td>
-                      <td className="py-3 pr-4 text-foreground">
-                        {log.user?.email ?? 'Unknown'}
-                      </td>
-                      <td className="py-3 pr-4 text-foreground">{log.description}</td>
-                      <td className="py-3">
-                        <pre className="max-w-[28rem] overflow-x-auto rounded-lg bg-surface p-2 text-xs text-muted">
-                          {JSON.stringify(log.metadata ?? {}, null, 2)}
-                        </pre>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+      {tab === 'audit' && <AuditLogsPanel />}
 
       {tab === 'system' && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

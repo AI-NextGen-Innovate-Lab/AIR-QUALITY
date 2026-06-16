@@ -92,7 +92,7 @@ function App() {
             <Route
               path="/private-sensors"
               element={
-                <ProtectedRoutes roles={['owner', 'admin']}>
+                <ProtectedRoutes roles={['owner']}>
                   <PrivateSensor />
                 </ProtectedRoutes>
               }

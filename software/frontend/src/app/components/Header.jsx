@@ -86,14 +86,14 @@ export default function Header() {
   const userLinks = [
     ...publicLinks,
     { path: '/user-dashboard', label: 'Dashboard', icon: Database },
-    { path: '/download', label: 'Download', icon: Cloud },
+    { path: '/user-dashboard?tab=export', label: 'Reports', icon: Cloud },
   ];
 
   const ownerLinks = [
     ...publicLinks,
     { path: '/private-sensors', label: 'My Sensors', icon: Settings },
     { path: '/user-dashboard', label: 'Dashboard', icon: Database },
-    { path: '/download', label: 'Download', icon: Cloud },
+    { path: '/user-dashboard?tab=export', label: 'Reports', icon: Cloud },
   ];
 
   const adminLinks = [
@@ -102,7 +102,7 @@ export default function Header() {
     { path: '/admin', label: 'Admin', icon: Shield },
     { path: '/sensor-status', label: 'Sensors', icon: Settings },
     { path: '/user-dashboard', label: 'Dashboard', icon: Database },
-    { path: '/download', label: 'Download', icon: Cloud },
+    { path: '/user-dashboard?tab=export', label: 'Reports', icon: Cloud },
   ];
 
   const getLinks = () => {

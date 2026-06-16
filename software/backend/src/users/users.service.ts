@@ -304,13 +304,50 @@ export class UsersService {
     }
   }
 
-  async getAuditLogs(limit = 100, actorRole?: string) {
-    if (actorRole !== 'ADMIN' && actorRole !== 'OWNER') {
+  async getAuditLogs(options: {
+    limit?: number;
+    actorRole?: string;
+    days?: number;
+    from?: string;
+    to?: string;
+  }) {
+    if (options.actorRole !== 'ADMIN' && options.actorRole !== 'OWNER') {
       throw new ForbiddenException('Only admins can access audit logs');
     }
 
-    const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
+    const safeLimit = Math.min(Math.max(Number(options.limit) || 100, 1), 500);
+    const where: { createdAt?: { gte?: Date; lte?: Date } } = {};
+
+    if (options.days && Number.isFinite(options.days) && options.days > 0) {
+      const fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - Math.min(options.days, 365));
+      where.createdAt = { gte: fromDate };
+    } else {
+      const fromDate = options.from ? new Date(options.from) : undefined;
+      const toDate = options.to ? new Date(options.to) : undefined;
+
+      if (fromDate && Number.isNaN(fromDate.getTime())) {
+        throw new BadRequestException('Invalid from date');
+      }
+      if (toDate && Number.isNaN(toDate.getTime())) {
+        throw new BadRequestException('Invalid to date');
+      }
+
+      if (fromDate || toDate) {
+        where.createdAt = {};
+        if (fromDate) {
+          where.createdAt.gte = fromDate;
+        }
+        if (toDate) {
+          const end = new Date(toDate);
+          end.setHours(23, 59, 59, 999);
+          where.createdAt.lte = end;
+        }
+      }
+    }
+
     return (this.prisma as any).activityLog.findMany({
+      where: Object.keys(where).length ? where : undefined,
       orderBy: { createdAt: 'desc' },
       take: safeLimit,
       include: {

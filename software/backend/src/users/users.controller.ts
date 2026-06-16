@@ -28,9 +28,18 @@ export class UsersController {
   @Roles('ADMIN', 'OWNER')
   getAuditLogs(
     @Query('limit') limit: string,
+    @Query('days') days: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
     @Request() req: { user: { role: string } },
   ) {
-    return this.usersService.getAuditLogs(Number(limit || '100'), req.user.role);
+    return this.usersService.getAuditLogs({
+      limit: Number(limit || '100'),
+      actorRole: req.user.role,
+      days: days ? Number(days) : undefined,
+      from: from || undefined,
+      to: to || undefined,
+    });
   }
 
   @Get('me')

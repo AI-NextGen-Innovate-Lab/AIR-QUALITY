@@ -464,7 +464,7 @@ const json = await res.json();
 console.log(json.data);`}
           </pre>
           <div className="flex flex-wrap gap-3">
-            <Link to="/download">
+            <Link to="/user-dashboard?tab=export">
               <Button type="button" variant="secondary">
                 <Download className="h-4 w-4" />
                 Download center

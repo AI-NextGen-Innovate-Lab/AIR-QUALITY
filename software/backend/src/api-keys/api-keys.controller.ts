@@ -94,6 +94,7 @@ export class ApiKeysController {
   }
 
   @Post(':id/revoke')
+  @Roles('ADMIN')
   revokeKey(
     @Param('id') id: string,
     @Request() req: { user: { id: number; role: string } },
@@ -102,6 +103,7 @@ export class ApiKeysController {
   }
 
   @Delete(':id')
+  @Roles('ADMIN')
   deleteKey(
     @Param('id') id: string,
     @Request() req: { user: { id: number; role: string } },

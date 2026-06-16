@@ -13,7 +13,6 @@ import {
   createApiKeyRequest,
   fetchMyApiKeyRequests,
   fetchMyApiKeys,
-  revokeApiKey,
 } from '@/app/lib/api/apiKeys';
 
 const TIER_INFO = [
@@ -51,15 +50,6 @@ export default function ApiAccess() {
       toast.success('API access request submitted');
       setPurpose('');
       queryClient.invalidateQueries({ queryKey: ['api-key-requests'] });
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const revokeMutation = useMutation({
-    mutationFn: revokeApiKey,
-    onSuccess: () => {
-      toast.success('API key revoked');
-      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -149,26 +139,14 @@ export default function ApiAccess() {
                       {key.lastUsedAt && ` · Last used ${new Date(key.lastUsedAt).toLocaleDateString()}`}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={statusVariant(key.status)}>{key.status}</Badge>
-                    {key.status === 'ACTIVE' && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          if (window.confirm('Revoke this API key? This cannot be undone.')) {
-                            revokeMutation.mutate(key.id);
-                          }
-                        }}
-                      >
-                        Revoke
-                      </Button>
-                    )}
-                  </div>
+                  <Badge variant={statusVariant(key.status)}>{key.status}</Badge>
                 </li>
               ))}
             </ul>
           )}
+          <p className="mt-4 text-xs text-muted">
+            API keys can only be revoked by an administrator.
+          </p>
         </div>
       </div>
 
