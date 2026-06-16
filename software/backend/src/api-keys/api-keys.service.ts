@@ -1,9 +1,12 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -12,10 +15,14 @@ import { ApiKeyRequestStatus, ApiKeyStatus } from '../../generated/prisma/client
 const KEY_PREFIX_LABEL = 'aqm_';
 const KEY_RANDOM_BYTES = 24;
 const KEY_EXPIRY_DAYS = 90;
+const KEY_DELIVERY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class ApiKeysService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   private async logActivity(
     userId: number,
@@ -179,6 +186,12 @@ export class ApiKeysService {
       keyPrefix,
     });
 
+    await this.cacheManager.set(
+      `api-key-delivery:${apiKey.id}`,
+      rawKey,
+      KEY_DELIVERY_TTL_MS,
+    );
+
     return {
       request: updatedRequest,
       apiKey: {
@@ -188,7 +201,7 @@ export class ApiKeysService {
         expiresAt: apiKey.expiresAt,
         createdAt: apiKey.createdAt,
       },
-      key: rawKey,
+      message: 'Request approved. The user can copy their key from API Access.',
     };
   }
 
@@ -252,6 +265,65 @@ export class ApiKeysService {
     });
   }
 
+  async getDeliveredKey(keyId: number, userId: number) {
+    const apiKey = await this.prisma.apiKey.findUnique({ where: { id: keyId } });
+    if (!apiKey) {
+      throw new NotFoundException('API key not found');
+    }
+    if (apiKey.userId !== userId) {
+      throw new ForbiddenException('You cannot access this API key');
+    }
+    const key = await this.cacheManager.get<string>(`api-key-delivery:${keyId}`);
+    if (!key) {
+      return { key: null, available: false };
+    }
+    return { key, available: true };
+  }
+
+  async getMyKeyDeliveries(userId: number) {
+    const keys = await this.prisma.apiKey.findMany({
+      where: { userId, status: ApiKeyStatus.ACTIVE },
+      select: { id: true },
+    });
+
+    const deliveries: Array<{ id: number; key: string }> = [];
+    for (const key of keys) {
+      const secret = await this.cacheManager.get<string>(`api-key-delivery:${key.id}`);
+      if (secret) {
+        deliveries.push({ id: key.id, key: secret });
+      }
+    }
+    return deliveries;
+  }
+
+  async removeKey(keyId: number, actorId: number, actorRole: string) {
+    const apiKey = await this.prisma.apiKey.findUnique({
+      where: { id: keyId },
+    });
+
+    if (!apiKey) {
+      throw new NotFoundException('API key not found');
+    }
+
+    const isAdmin = actorRole === 'ADMIN';
+    const isOwner = apiKey.userId === actorId;
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You cannot delete this API key');
+    }
+
+    await this.cacheManager.del(`api-key-delivery:${keyId}`);
+
+    await this.prisma.apiKey.delete({ where: { id: keyId } });
+
+    await this.logActivity(actorId, 'DELETE', 'API key permanently deleted', {
+      apiKeyId: keyId,
+      ownerId: apiKey.userId,
+      previousStatus: apiKey.status,
+    });
+
+    return { ok: true };
+  }
+
   async revokeKey(keyId: number, actorId: number, actorRole: string) {
     const apiKey = await this.prisma.apiKey.findUnique({
       where: { id: keyId },
@@ -262,8 +334,9 @@ export class ApiKeysService {
     }
 
     const isAdmin = actorRole === 'ADMIN';
-    if (!isAdmin) {
-      throw new ForbiddenException('Only administrators can revoke API keys');
+    const isOwner = apiKey.userId === actorId;
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You cannot revoke this API key');
     }
 
     if (apiKey.status === ApiKeyStatus.REVOKED) {
@@ -278,6 +351,8 @@ export class ApiKeysService {
         revokedBy: actorId,
       },
     });
+
+    await this.cacheManager.del(`api-key-delivery:${keyId}`);
 
     await this.logActivity(actorId, 'REVOKE', 'API key revoked', {
       apiKeyId: keyId,

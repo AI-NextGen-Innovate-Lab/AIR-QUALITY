@@ -74,7 +74,7 @@ function App() {
             <Route
               path="/admin"
               element={
-                <ProtectedRoutes roles={['admin', 'owner']}>
+                <ProtectedRoutes roles={['admin']}>
                   <AdminPanel />
                 </ProtectedRoutes>
               }
@@ -83,7 +83,7 @@ function App() {
             <Route
               path="/sensor-status"
               element={
-                <ProtectedRoutes roles={['admin', 'owner']}>
+                <ProtectedRoutes roles={['admin']}>
                   <SensorStatus />
                 </ProtectedRoutes>
               }

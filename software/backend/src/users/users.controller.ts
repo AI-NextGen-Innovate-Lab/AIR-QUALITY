@@ -12,20 +12,20 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   @HttpCode(HttpStatus.CREATED)
   create(@Body() createUserDto: CreateUserDto, @Request() req: any) {
     return this.usersService.create(createUserDto);
   }
 
   @Get()
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   findAll() {
     return this.usersService.findAll();
   }
 
   @Get('audit-logs')
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   getAuditLogs(
     @Query('limit') limit: string,
     @Query('days') days: string,
@@ -53,25 +53,25 @@ export class UsersController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(+id);
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Request() req: any) {
     return this.usersService.update(+id, updateUserDto, req.user.role, req.user.id);
   }
 
   @Patch(':id/role')
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   updateRole(@Param('id') id: string, @Body() body: { role: string }, @Request() req: any) {
     return this.usersService.updateRole(+id, body.role, req.user.role, req.user.id);
   }
 
   @Delete(':id')
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   remove(@Param('id') id: string, @Request() req: any) {
     return this.usersService.remove(+id, req.user.role, req.user.id);
   }

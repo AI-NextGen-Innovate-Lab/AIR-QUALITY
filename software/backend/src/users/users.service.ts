@@ -168,7 +168,7 @@ export class UsersService {
   async update(id: number, updateUserDto: UpdateUserDto, currentUserRole: string, actorUserId: number) {
     try {
       // Only admin/owner can update users
-      if (currentUserRole !== 'ADMIN' && currentUserRole !== 'OWNER') {
+      if (currentUserRole !== 'ADMIN') {
         throw new ForbiddenException('Only admins can update users');
       }
 
@@ -221,7 +221,7 @@ export class UsersService {
   async updateRole(id: number, role: string, currentUserRole: string, actorUserId: number) {
     try {
       // Only admin/owner can update roles
-      if (currentUserRole !== 'ADMIN' && currentUserRole !== 'OWNER') {
+      if (currentUserRole !== 'ADMIN') {
         throw new ForbiddenException('Only admins can update user roles');
       }
 
@@ -267,7 +267,7 @@ export class UsersService {
   async remove(id: number, currentUserRole: string, actorUserId: number) {
     try {
       // Only admin/owner can delete users
-      if (currentUserRole !== 'ADMIN' && currentUserRole !== 'OWNER') {
+      if (currentUserRole !== 'ADMIN') {
         throw new ForbiddenException('Only admins can delete users');
       }
 
@@ -311,8 +311,8 @@ export class UsersService {
     from?: string;
     to?: string;
   }) {
-    if (options.actorRole !== 'ADMIN' && options.actorRole !== 'OWNER') {
-      throw new ForbiddenException('Only admins can access audit logs');
+    if (options.actorRole !== 'ADMIN') {
+      throw new ForbiddenException('Only administrators can access audit logs');
     }
 
     const safeLimit = Math.min(Math.max(Number(options.limit) || 100, 1), 500);

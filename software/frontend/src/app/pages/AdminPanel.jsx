@@ -76,11 +76,8 @@ export default function AdminPanel() {
 
   const approveMutation = useMutation({
     mutationFn: approveApiKeyRequest,
-    onSuccess: (data) => {
-      toast.success('Request approved. Copy the key from the response — it is shown once.');
-      if (data?.key) {
-        window.prompt('Copy this API key now (shown once):', data.key);
-      }
+    onSuccess: () => {
+      toast.success('Request approved. The user can copy their key from API Access.');
       queryClient.invalidateQueries({ queryKey: ['api-key-requests'] });
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
     },

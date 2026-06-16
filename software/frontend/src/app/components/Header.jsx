@@ -9,7 +9,6 @@ import {
   Settings,
   Shield,
   BookOpen,
-  Cloud,
   ChevronDown,
 } from 'lucide-react';
 import logo from '../../assets/logo.jpg';
@@ -83,33 +82,36 @@ export default function Header() {
     { path: '/map', label: 'Map', icon: Map },
   ];
 
-  const userLinks = [
-    ...publicLinks,
-    { path: '/user-dashboard', label: 'Dashboard', icon: Database },
-    { path: '/user-dashboard?tab=export', label: 'Reports', icon: Cloud },
-  ];
-
   const ownerLinks = [
-    ...publicLinks,
+    { path: '/', label: 'Home', icon: Home },
+    { path: '/map', label: 'Map', icon: Map },
+    { path: '/api-docs', label: 'Docs', icon: BookOpen },
     { path: '/private-sensors', label: 'My Sensors', icon: Settings },
-    { path: '/user-dashboard', label: 'Dashboard', icon: Database },
-    { path: '/user-dashboard?tab=export', label: 'Reports', icon: Cloud },
+    { path: '/user-dashboard', label: 'Analytics', icon: Database },
+    { path: '/api-access', label: 'API Access', icon: BookOpen },
   ];
 
   const adminLinks = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/map', label: 'Map', icon: Map },
+    { path: '/api-docs', label: 'Docs', icon: BookOpen },
     { path: '/admin', label: 'Admin', icon: Shield },
     { path: '/sensor-status', label: 'Sensors', icon: Settings },
-    { path: '/user-dashboard', label: 'Dashboard', icon: Database },
-    { path: '/user-dashboard?tab=export', label: 'Reports', icon: Cloud },
+    { path: '/user-dashboard', label: 'Analytics', icon: Database },
+    { path: '/api-access', label: 'API Access', icon: BookOpen },
   ];
 
   const getLinks = () => {
     if (!user) return publicLinks;
     const role = String(user.role || 'USER').toUpperCase();
-    if (role === 'ADMIN' || role === 'OWNER') return role === 'ADMIN' ? adminLinks : ownerLinks;
-    return userLinks;
+    if (role === 'ADMIN') return adminLinks;
+    if (role === 'OWNER') return ownerLinks;
+    return [
+      ...publicLinks,
+      { path: '/api-docs', label: 'Docs', icon: BookOpen },
+      { path: '/user-dashboard', label: 'Dashboard', icon: Database },
+      { path: '/api-access', label: 'API Access', icon: BookOpen },
+    ];
   };
 
   const links = getLinks();

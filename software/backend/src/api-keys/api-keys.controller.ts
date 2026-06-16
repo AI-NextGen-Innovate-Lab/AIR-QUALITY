@@ -55,7 +55,7 @@ export class ApiKeysController {
   }
 
   @Get('requests')
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   getRequests(@Query('status') status?: string) {
     if (status === 'PENDING') {
       return this.apiKeysService.getPendingRequests();
@@ -64,7 +64,7 @@ export class ApiKeysController {
   }
 
   @Post('requests/:id/approve')
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   approveRequest(
     @Param('id') id: string,
     @Request() req: { user: { id: number } },
@@ -73,7 +73,7 @@ export class ApiKeysController {
   }
 
   @Post('requests/:id/reject')
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   rejectRequest(
     @Param('id') id: string,
     @Request() req: { user: { id: number } },
@@ -82,19 +82,31 @@ export class ApiKeysController {
     return this.apiKeysService.rejectRequest(+id, req.user.id, dto.reviewNote);
   }
 
+  @Get('mine/deliveries')
+  getMyKeyDeliveries(@Request() req: { user: { id: number } }) {
+    return this.apiKeysService.getMyKeyDeliveries(req.user.id);
+  }
+
   @Get('mine')
   getMyKeys(@Request() req: { user: { id: number } }) {
     return this.apiKeysService.getMyKeys(req.user.id);
   }
 
+  @Get(':id/secret')
+  getKeySecret(
+    @Param('id') id: string,
+    @Request() req: { user: { id: number } },
+  ) {
+    return this.apiKeysService.getDeliveredKey(+id, req.user.id);
+  }
+
   @Get()
-  @Roles('ADMIN', 'OWNER')
+  @Roles('ADMIN')
   getAllKeys(@Query('status') status?: string) {
     return this.apiKeysService.getAllKeys(parseKeyStatus(status));
   }
 
   @Post(':id/revoke')
-  @Roles('ADMIN')
   revokeKey(
     @Param('id') id: string,
     @Request() req: { user: { id: number; role: string } },
@@ -103,11 +115,10 @@ export class ApiKeysController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
   deleteKey(
     @Param('id') id: string,
     @Request() req: { user: { id: number; role: string } },
   ) {
-    return this.apiKeysService.revokeKey(+id, req.user.id, req.user.role);
+    return this.apiKeysService.removeKey(+id, req.user.id, req.user.role);
   }
 }

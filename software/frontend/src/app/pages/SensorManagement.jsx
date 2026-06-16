@@ -88,13 +88,21 @@ export default function SensorManagement() {
   });
 
   const owners = ownersQuery.data ?? [];
+  const allSensors = sensorsQuery.data ?? [];
 
   const filteredSensors = useMemo(() => {
-    const rows = sensorsQuery.data ?? [];
+    const rows = allSensors;
     if (filter === 'unregistered') return rows.filter((s) => !s.registered);
     if (filter === 'registered') return rows.filter((s) => s.registered);
     return rows;
-  }, [sensorsQuery.data, filter]);
+  }, [allSensors, filter]);
+
+  const counts = useMemo(() => ({
+    total: allSensors.length,
+    registered: allSensors.filter((s) => s.registered).length,
+    public: allSensors.filter((s) => s.visibility === 'PUBLIC').length,
+    private: allSensors.filter((s) => s.visibility === 'PRIVATE').length,
+  }), [allSensors]);
 
   const startEdit = (sensor) => {
     if (!sensor.id) return;
@@ -164,8 +172,35 @@ export default function SensorManagement() {
     return <LoadingBlock message="Loading sensors from Influx…" />;
   }
 
+  if (sensorsQuery.isError) {
+    return (
+      <div className="rounded-xl border border-aqi-unhealthy/30 bg-aqi-unhealthy-soft/20 p-4 text-sm text-aqi-unhealthy">
+        Could not load sensors: {sensorsQuery.error?.message || 'Unknown error'}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-4">
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <p className="text-2xl font-semibold text-foreground">{counts.total}</p>
+          <p className="text-xs text-muted">Sensors in system</p>
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <p className="text-2xl font-semibold text-foreground">{counts.registered}</p>
+          <p className="text-xs text-muted">Registered</p>
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <p className="text-2xl font-semibold text-foreground">{counts.public}</p>
+          <p className="text-xs text-muted">Public</p>
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <p className="text-2xl font-semibold text-foreground">{counts.private}</p>
+          <p className="text-xs text-muted">Private</p>
+        </div>
+      </div>
+
       <p className="text-sm text-muted">
         View all topics reporting to Influx, register them, and mark each as public or private.
         Administrators see metadata only — private measurements stay hidden.

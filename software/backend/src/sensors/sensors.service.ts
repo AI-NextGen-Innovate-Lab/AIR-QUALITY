@@ -73,10 +73,18 @@ export class SensorsService {
   }
 
   async findAvailable(hours = 168) {
-    const [influxTopics, registered] = await Promise.all([
-      this.influxService.getDistinctTopics(hours),
-      this.prisma.sensor.findMany({ include: sensorInclude }),
-    ]);
+    const registered = await this.prisma.sensor.findMany({ include: sensorInclude });
+
+    let influxTopics: Array<{ topic: string; lastSeen: string }> = [];
+    try {
+      influxTopics = await this.influxService.getDistinctTopics(hours);
+    } catch {
+      influxTopics = await this.influxService.getTopicsFromReadings(hours);
+    }
+
+    if (!influxTopics.length) {
+      influxTopics = await this.influxService.getTopicsFromReadings(hours);
+    }
 
     const byTopic = new Map(registered.map((s) => [s.topic, s]));
     const seen = new Set<string>();

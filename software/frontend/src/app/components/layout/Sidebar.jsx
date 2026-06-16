@@ -21,23 +21,40 @@ import { useSidebar } from '@/app/context/SidebarContext';
 import { cn } from '@/app/lib/utils/cn';
 import logo from '@/assets/logo.jpg';
 
-const NAV_ITEMS = [
-  { path: '/', label: 'Overview', icon: LayoutDashboard, roles: null },
-  { path: '/user-dashboard', label: 'Analytics & Reports', icon: BarChart3, roles: ['user', 'admin', 'owner'] },
-  { path: '/map', label: 'Live Map', icon: Map, roles: null },
-  { path: '/sensor-status', label: 'Sensors', icon: RadioTower, roles: ['admin', 'owner'] },
-  { path: '/api-access', label: 'API Access', icon: KeyRound, roles: ['user', 'admin', 'owner'] },
-  { path: '/api-docs', label: 'Documentation', icon: BookOpen, roles: null },
-  { path: '/profile', label: 'Settings', icon: Settings, roles: ['user', 'admin', 'owner'] },
+const PUBLIC_NAV = [
+  { path: '/', label: 'Overview', icon: LayoutDashboard },
+  { path: '/map', label: 'Live Map', icon: Map },
+  { path: '/api-docs', label: 'Documentation', icon: BookOpen },
 ];
 
-const ADMIN_ITEMS = [
-  { path: '/admin', label: 'Users', icon: Users, tab: 'users', roles: ['admin', 'owner'] },
-  { path: '/admin', label: 'Sensors', icon: RadioTower, tab: 'sensors', roles: ['admin'] },
-  { path: '/admin', label: 'API Requests', icon: ClipboardCheck, tab: 'requests', roles: ['admin', 'owner'] },
-  { path: '/admin', label: 'API Keys', icon: Shield, tab: 'api', roles: ['admin', 'owner'] },
-  { path: '/admin', label: 'System Health', icon: ScrollText, tab: 'system', roles: ['admin', 'owner'] },
-  { path: '/private-sensors', label: 'My sensors', icon: RadioTower, roles: ['owner'] },
+const USER_NAV = [
+  { path: '/user-dashboard', label: 'Analytics & Reports', icon: BarChart3 },
+  { path: '/api-access', label: 'API Access', icon: KeyRound },
+  { path: '/profile', label: 'Settings', icon: Settings },
+];
+
+const OWNER_NAV = [
+  { path: '/private-sensors', label: 'My sensors', icon: RadioTower },
+  { path: '/user-dashboard', label: 'Analytics & Reports', icon: BarChart3 },
+  { path: '/api-access', label: 'API Access', icon: KeyRound },
+  { path: '/profile', label: 'Settings', icon: Settings },
+];
+
+const ADMIN_NAV = [
+  { path: '/user-dashboard', label: 'Analytics & Reports', icon: BarChart3 },
+  { path: '/sensor-status', label: 'Sensor health', icon: RadioTower },
+  { path: '/api-access', label: 'API Access', icon: KeyRound },
+  { path: '/profile', label: 'Settings', icon: Settings },
+];
+
+const ADMIN_SECTION = [
+  { path: '/admin', label: 'Admin panel', icon: Users, tab: 'overview' },
+  { path: '/admin', label: 'Users', icon: Users, tab: 'users' },
+  { path: '/admin', label: 'Sensors', icon: RadioTower, tab: 'sensors' },
+  { path: '/admin', label: 'API Requests', icon: ClipboardCheck, tab: 'requests' },
+  { path: '/admin', label: 'API Keys', icon: Shield, tab: 'api' },
+  { path: '/admin', label: 'Audit logs', icon: ScrollText, tab: 'audit' },
+  { path: '/admin', label: 'System', icon: ScrollText, tab: 'system' },
 ];
 
 function NavItem({ item, currentPath, collapsed, onNavigate }) {
@@ -72,11 +89,12 @@ function NavItem({ item, currentPath, collapsed, onNavigate }) {
   );
 }
 
-function filterByRole(items, role) {
-  return items.filter((item) => {
-    if (!item.roles) return true;
-    return item.roles.includes(role);
-  });
+function navForRole(role) {
+  const roleNav =
+    role === 'admin' ? ADMIN_NAV :
+    role === 'owner' ? OWNER_NAV :
+    role === 'user' ? USER_NAV : [];
+  return [...PUBLIC_NAV, ...roleNav];
 }
 
 export default function Sidebar() {
@@ -91,8 +109,8 @@ export default function Sidebar() {
     setMobileOpen(false);
   };
 
-  const mainNav = filterByRole(NAV_ITEMS, role === 'guest' ? null : role);
-  const adminNav = user ? filterByRole(ADMIN_ITEMS, role) : [];
+  const mainNav = navForRole(role);
+  const adminNav = role === 'admin' ? ADMIN_SECTION : [];
 
   const content = (
     <div className="flex h-full flex-col">
@@ -136,7 +154,7 @@ export default function Sidebar() {
             )}
             {adminNav.map((item) => (
               <NavItem
-                key={`${item.path}-${item.label}`}
+                key={`${item.path}-${item.label}-${item.tab}`}
                 item={item}
                 currentPath={location.pathname}
                 collapsed={collapsed}

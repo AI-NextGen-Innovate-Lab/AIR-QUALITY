@@ -116,8 +116,9 @@ export class InfluxService {
       from(bucket: "${bucket}")
         |> range(start: -${safeHours}h)
         |> filter(fn: (r) => exists r.topic and r.topic != "")
+        |> filter(fn: (r) => r._field == "value")
         |> group(columns: ["topic"])
-        |> last(column: "_time")
+        |> last()
         |> group()
     `;
 
@@ -155,7 +156,21 @@ export class InfluxService {
     query: ClampedReadingsQuery,
     tier: AccessTier = 'PUBLIC',
     userId?: number,
-  ) {
+  ): Promise<{
+    data: Array<{
+      id: string;
+      measurement: string;
+      value: number | string | null;
+      time: unknown;
+    }>;
+    pagination: {
+      limit: number;
+      page: number;
+      hours: number;
+      count: number;
+      tier: AccessTier;
+    };
+  }> {
     if (query.sensorId) {
       const sensor = await this.prisma.sensor.findUnique({
         where: { topic: query.sensorId },
@@ -293,5 +308,34 @@ export class InfluxService {
         },
       });
     });
+  }
+
+  async getTopicsFromReadings(
+    hours = 168,
+  ): Promise<Array<{ topic: string; lastSeen: string }>> {
+    const safeHours = Math.min(Math.max(Number(hours) || 168, 1), 720);
+    const result = await this.getReadings(
+      {
+        limit: 5000,
+        page: 1,
+        hours: safeHours,
+      },
+      'API_KEY',
+    );
+
+    const byTopic = new Map<string, string>();
+    for (const row of result.data) {
+      const topic = row.id;
+      const time = row.time ? new Date(String(row.time)).toISOString() : '';
+      if (!topic) continue;
+      const prev = byTopic.get(topic);
+      if (!prev || time > prev) {
+        byTopic.set(topic, time || new Date().toISOString());
+      }
+    }
+
+    return Array.from(byTopic.entries())
+      .map(([topic, lastSeen]) => ({ topic, lastSeen }))
+      .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
   }
 }
