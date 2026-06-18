@@ -10,6 +10,7 @@ import {
   Calendar,
   Hash,
   Loader2,
+  Palette,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DashboardPage } from '@/app/components/layout/DashboardPage';
@@ -19,6 +20,7 @@ import { Card, CardContent } from '@/app/components/ui/card';
 import { ErrorBlock, LoadingBlock } from '@/app/components/data/DataState';
 import { fetchMyProfile, updateMyProfile } from '@/app/lib/api/profile';
 import { panel, tabBtn, inputClass, labelClass } from '@/app/lib/dashboardStyles';
+import { ThemeSelector } from '@/app/components/ThemeSelector';
 import { cn } from '@/app/lib/utils/cn';
 
 function ProfileField({ icon: Icon, children, className }) {
@@ -242,6 +244,7 @@ export default function UserProfile() {
           <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-4">
             {[
               { id: 'profile', label: 'Profile' },
+              { id: 'appearance', label: 'Appearance' },
               { id: 'security', label: 'Security' },
               { id: 'notifications', label: 'Notifications' },
               { id: 'api', label: 'API access' },
@@ -323,6 +326,23 @@ export default function UserProfile() {
                   )}
                 </Button>
               </div>
+            </div>
+          )}
+
+          {tab === 'appearance' && (
+            <div className={panel()}>
+              <div className="mb-6 flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                  <Palette className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">Appearance</h3>
+                  <p className="mt-1 text-sm text-muted">
+                    Choose light, dark, or match your device setting. Your preference is saved on this browser.
+                  </p>
+                </div>
+              </div>
+              <ThemeSelector />
             </div>
           )}
 

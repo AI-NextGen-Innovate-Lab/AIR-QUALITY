@@ -68,7 +68,7 @@ function NavItem({ item, currentPath, collapsed, onNavigate }) {
   const className = cn(
     'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
     isActive
-      ? 'bg-brand-50 text-brand-800'
+      ? 'bg-brand-50 text-brand-800 dark:bg-brand-100/40 dark:text-brand-800'
       : 'text-muted hover:bg-surface hover:text-foreground'
   );
 

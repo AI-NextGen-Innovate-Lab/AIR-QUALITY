@@ -1,8 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
 
 import { AuthProvider } from './app/context/AuthContext';
+import { ThemedToaster } from './app/components/ThemedToaster';
 import AppShell from './app/components/layout/AppShell';
 
 import HomePage from './app/pages/HomePage';
@@ -25,7 +25,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Toaster position="top-right" richColors closeButton />
+        <ThemedToaster />
         <Routes>
           <Route element={<AppShell />}>
             {/* Public */}

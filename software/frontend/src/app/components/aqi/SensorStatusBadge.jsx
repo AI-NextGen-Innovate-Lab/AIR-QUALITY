@@ -19,7 +19,7 @@ export function SensorStatusBadge({ status }) {
       )}
     >
       <span
-        className={cn('h-1.5 w-1.5 rounded-full', status?.dotClass ?? 'bg-gray-400')}
+        className={cn('h-1.5 w-1.5 rounded-full', status?.dotClass ?? 'bg-muted-foreground')}
       />
       {label}
     </span>

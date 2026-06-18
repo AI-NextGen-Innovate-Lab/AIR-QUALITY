@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Cloud, Mail, Lock, User } from 'lucide-react';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { ThemeToggle } from '@/app/components/ThemeToggle';
 import { cn } from '@/app/lib/utils/cn';
 import { inputClass } from '@/app/lib/dashboardStyles';
 
@@ -107,7 +108,10 @@ export default function LoginPage() {
   const displayError = localError || authError;
 
   return (
-    <div className="py-12 sm:py-16 flex items-center justify-center min-h-[70vh]">
+    <div className="relative py-12 sm:py-16 flex items-center justify-center min-h-[70vh]">
+      <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+        <ThemeToggle />
+      </div>
       <Card className="w-full max-w-md border-border shadow-[var(--shadow-card-hover)]">
         <CardContent className="pt-8 pb-8">
           <div className="text-center mb-6">

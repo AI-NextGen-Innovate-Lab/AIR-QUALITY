@@ -127,12 +127,12 @@ export function HomePage() {
 
           <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
             <StatCard icon={TrendingUp} value={loading ? '—' : Math.round(city.aqi)} label="City AQI" />
-            <StatCard icon={Activity} value={loading ? '—' : countOnlineSensors(sensors)} label="Sensors online" />
+            <StatCard icon={Activity} value={loading ? '—' : countOnlineSensors(sensors)} label="Sensors Offline" />
             <StatCard icon={MapPin} value={loading ? '—' : 1} label="City covered" />
             <StatCard
               icon={AlertTriangle}
               value={loading ? '—' : countOfflineSensors(sensors)}
-              label="Offline sensors"
+              label="Online sensors"
               accent={countOfflineSensors(sensors) > 0 ? 'warn' : undefined}
             />
             <StatCard icon={Shield} value={loading ? '—' : goodLocationsCount} label="Good air zones" accent="good" />
