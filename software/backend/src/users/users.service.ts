@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -118,6 +118,47 @@ export class UsersService {
       }
       throw new BadRequestException(
         error instanceof Error ? error.message : 'Failed to fetch user'
+      );
+    }
+  }
+
+  async changePassword(id: number, currentPassword: string, newPassword: string) {
+    try {
+      const user = await (this.prisma as any).user.findUnique({
+        where: { id },
+      });
+
+      if (!user) {
+        throw new NotFoundException(`User with ID ${id} not found`);
+      }
+
+      const isCurrentValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isCurrentValid) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
+
+      if (currentPassword === newPassword) {
+        throw new BadRequestException('New password must be different from your current password');
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await (this.prisma as any).user.update({
+        where: { id },
+        data: { password: hashedPassword },
+      });
+
+      await this.logUserActivity(id, 'CHANGE_PASSWORD', 'User changed password');
+      return { message: 'Password updated successfully' };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Failed to change password',
       );
     }
   }
