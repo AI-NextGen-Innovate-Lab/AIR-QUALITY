@@ -41,9 +41,9 @@ const OWNER_NAV = [
 ];
 
 const ADMIN_NAV = [
-  { path: '/user-dashboard', label: 'Analytics & Reports', icon: BarChart3 },
-  { path: '/sensor-status', label: 'Sensor health', icon: RadioTower },
-  { path: '/api-access', label: 'API Access', icon: KeyRound },
+  // { path: '/user-dashboard', label: 'Analytics & Reports', icon: BarChart3 },
+  // { path: '/sensor-status', label: 'Sensor health', icon: RadioTower },
+  // { path: '/api-access', label: 'API Access', icon: KeyRound },
   { path: '/profile', label: 'Settings', icon: Settings },
 ];
 

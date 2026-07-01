@@ -47,7 +47,7 @@ function App() {
             <Route
               path="/user-dashboard"
               element={
-                <ProtectedRoutes roles={['user', 'admin', 'owner']}>
+                <ProtectedRoutes roles={['user', 'owner']}>
                   <DataDashboard />
                 </ProtectedRoutes>
               }
@@ -56,7 +56,7 @@ function App() {
             <Route
               path="/api-access"
               element={
-                <ProtectedRoutes roles={['user', 'admin', 'owner']}>
+                <ProtectedRoutes roles={['user', 'owner']}>
                   <ApiAccess />
                 </ProtectedRoutes>
               }
@@ -65,7 +65,7 @@ function App() {
             <Route
               path="/download"
               element={
-                <ProtectedRoutes roles={['user', 'admin', 'owner']}>
+                <ProtectedRoutes roles={['user', 'owner']}>
                   <Download />
                 </ProtectedRoutes>
               }
