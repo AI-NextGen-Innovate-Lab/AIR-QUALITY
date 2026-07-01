@@ -24,7 +24,7 @@ import logo from '@/assets/logo.jpg';
 const PUBLIC_NAV = [
   { path: '/', label: 'Overview', icon: LayoutDashboard },
   { path: '/map', label: 'Live Map', icon: Map },
-  { path: '/api-docs', label: 'Documentation', icon: BookOpen },
+  // { path: '/api-docs', label: 'Documentation', icon: BookOpen },
 ];
 
 const USER_NAV = [
