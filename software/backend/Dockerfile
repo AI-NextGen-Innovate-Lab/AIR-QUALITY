@@ -5,11 +5,16 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependency files
 COPY package.json package-lock.json ./
 
-# Install all dependencies
-RUN npm ci
+# copy prisma BEFORE install (IMPORTANT)
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+
+RUN npm ci --omit=dev
+
+# ensure prisma is generated explicitly
+RUN npx prisma generate
 
 # Copy application source
 COPY src ./src

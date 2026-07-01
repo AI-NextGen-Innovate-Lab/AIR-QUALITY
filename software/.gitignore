@@ -17,3 +17,4 @@ node_modules/
 
 # Env
 .env
+.env.docker
