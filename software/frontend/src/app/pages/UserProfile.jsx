@@ -316,8 +316,8 @@ export default function UserProfile() {
               { id: 'profile', label: 'Profile' },
               { id: 'appearance', label: 'Appearance' },
               { id: 'security', label: 'Security' },
-              { id: 'notifications', label: 'Notifications' },
-              { id: 'api', label: 'API access' },
+              // { id: 'notifications', label: 'Notifications' },
+              // { id: 'api', label: 'API access' },
             ].map((t) => (
               <button
                 key={t.id}
