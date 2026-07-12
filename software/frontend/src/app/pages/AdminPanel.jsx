@@ -1,7 +1,17 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Activity, AlertCircle, Settings, KeyRound } from 'lucide-react';
+import {
+  Users,
+  AlertCircle,
+  Settings,
+  KeyRound,
+  LayoutDashboard,
+  Inbox,
+  Cpu,
+  ScrollText,
+  FileText,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchHealth } from '@/app/lib/api';
 import { useReadingsQuery } from '@/app/hooks/useReadingsQuery';
@@ -21,13 +31,14 @@ import { DashboardPage } from '@/app/components/layout/DashboardPage';
 import { PageHeader } from '@/app/components/layout/PageHeader';
 import { StatCard } from '@/app/components/data/StatCard';
 import { ErrorBlock } from '@/app/components/data/DataState';
-import { panel, tabBtn } from '@/app/lib/dashboardStyles';
+import { panel } from '@/app/lib/dashboardStyles';
 import { cn } from '@/app/lib/utils/cn';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import UserManagement from './UserManagement';
 import SensorManagement from './SensorManagement';
 import AuditLogsPanel from './AuditLogsPanel';
+import SystemReportPanel from '@/app/components/reports/SystemReportPanel';
 import { useAuth } from '@/app/context/AuthContext';
 
 function pill(text, variant = 'neutral') {
@@ -125,21 +136,37 @@ export default function AdminPanel() {
 
       {readError && <ErrorBlock message={`Readings: ${readError}`} className="mb-6" />}
 
-      <div className="mb-4 flex flex-wrap gap-2 border-b border-border pb-3">
+      <nav className="mb-6 flex flex-wrap gap-1.5 rounded-2xl border border-border bg-surface-elevated p-1.5 shadow-[var(--shadow-card)]">
         {[
-          { id: 'overview', label: 'Overview' },
-          { id: 'requests', label: 'API Requests' },
-          { id: 'users', label: 'Users' },
-          ...(isAdmin ? [{ id: 'sensors', label: 'Sensors' }] : []),
-          { id: 'api', label: 'API Keys' },
-          { id: 'audit', label: 'Audit logs' },
-          { id: 'system', label: 'System' },
-        ].map((t) => (
-          <button key={t.id} type="button" className={tabBtn(tab === t.id)} onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+          { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+          { id: 'requests', label: 'API Requests', icon: Inbox },
+          { id: 'users', label: 'Users', icon: Users },
+          ...(isAdmin ? [{ id: 'sensors', label: 'Sensors', icon: Cpu }] : []),
+          { id: 'api', label: 'API Keys', icon: KeyRound },
+          { id: 'audit', label: 'Audit logs', icon: ScrollText },
+          ...(isAdmin ? [{ id: 'reports', label: 'Reports', icon: FileText }] : []),
+          { id: 'system', label: 'System', icon: Settings },
+        ].map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              aria-current={active ? 'page' : undefined}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors',
+                active
+                  ? 'bg-brand-600 text-white shadow-sm'
+                  : 'text-muted hover:bg-surface hover:text-foreground'
+              )}
+            >
+              <t.icon className="h-4 w-4" />
+              {t.label}
+            </button>
+          );
+        })}
+      </nav>
 
       {tab === 'overview' && (
         <div className={panel()}>
@@ -274,6 +301,8 @@ export default function AdminPanel() {
       )}
 
       {tab === 'audit' && <AuditLogsPanel />}
+
+      {tab === 'reports' && isAdmin && <SystemReportPanel />}
 
       {tab === 'system' && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

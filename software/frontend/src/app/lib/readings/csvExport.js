@@ -67,3 +67,25 @@ export function downloadTextFile(filename, content, mime = "text/csv;charset=utf
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Emit already-built rows in the chosen format: "json" downloads a .json file,
+ * "pdf" opens a print-to-PDF view, anything else downloads a UTF-8 CSV.
+ */
+export function exportRowsAs(format, rows, columnKeys, baseName, title, subtitle) {
+  if (format === "json") {
+    downloadTextFile(
+      `${baseName}.json`,
+      JSON.stringify(rows, null, 2),
+      "application/json;charset=utf-8;"
+    );
+  } else if (format === "pdf") {
+    printRowsAsPdf(title, columnKeys, rows, subtitle);
+  } else {
+    downloadTextFile(
+      `${baseName}.csv`,
+      "﻿" + toCsv(rows, columnKeys),
+      "text/csv;charset=utf-8;"
+    );
+  }
+}
