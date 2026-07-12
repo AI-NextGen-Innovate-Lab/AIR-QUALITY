@@ -328,23 +328,55 @@ export default function ExportPanel() {
           </div>
 
           <div className={panel()}>
-            <h3 className="mb-3 text-lg font-semibold text-foreground">3. Measurements</h3>
-            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-              {MEASUREMENTS.map((measurement) => {
-                const selected = selectedMeasurements.includes(measurement);
-                return (
-                  <label key={measurement} className={choiceCard(selected)}>
-                    <input
-                      type="checkbox"
-                      className="mr-2 h-4 w-4 align-middle"
-                      checked={selected}
-                      onChange={() => toggleMeasurement(measurement)}
-                    />
-                    <span className="text-sm font-medium text-foreground">{measurement}</span>
-                  </label>
-                );
-              })}
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-semibold text-foreground">3. Measurements</h3>
+              {availableMeasurements.length > 0 && (
+                <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1 sm:flex-none"
+                    onClick={() => setSelectedMeasurements(availableMeasurements)}
+                  >
+                    Whole sensor
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1 sm:flex-none"
+                    onClick={() => setSelectedMeasurements([])}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              )}
             </div>
+            {!selectedSensors.length ? (
+              <p className="text-sm text-muted">Select a sensor first to see its measurements.</p>
+            ) : availableMeasurements.length === 0 ? (
+              <p className="text-sm text-muted">
+                No measurements found for the selected sensor(s) in the recent sample.
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                {availableMeasurements.map((measurement) => {
+                  const selected = selectedMeasurements.includes(measurement);
+                  return (
+                    <label key={measurement} className={choiceCard(selected)}>
+                      <input
+                        type="checkbox"
+                        className="mr-2 h-4 w-4 align-middle"
+                        checked={selected}
+                        onChange={() => toggleMeasurement(measurement)}
+                      />
+                      <span className="text-sm font-medium text-foreground">{measurement}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className={panel()}>
