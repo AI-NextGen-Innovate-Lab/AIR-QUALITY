@@ -4,6 +4,7 @@ import { Menu, User, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { useSidebar } from '@/app/context/SidebarContext';
 import { Button } from '@/app/components/ui/button';
+import { ThemeToggle } from '@/app/components/ThemeToggle';
 
 export default function TopBar() {
   const { user, logout } = useAuth();
@@ -39,6 +40,7 @@ export default function TopBar() {
       </div>
 
       <div className="flex items-center gap-2">
+        <ThemeToggle size="sm" />
         {user ? (
           <div className="relative" ref={dropdownRef}>
             <button

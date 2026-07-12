@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Download as DownloadIcon,
   FileText,
-  FileSpreadsheet,
+  FileJson,
   Calendar,
   CheckCircle,
   HelpCircle,
@@ -11,16 +11,14 @@ import {
   Info,
 } from 'lucide-react';
 import { fetchReadings } from '@/app/lib/api';
-import { getUsersApi } from '@/app/lib/api/users';
 import { groupReadingsBySensor, formatSensorLabel } from '@/app/lib/sensorData';
 import { hoursForDownloadRange } from '@/app/lib/readings/downloadFilters';
-import { downloadTextFile, toCsv } from '@/app/lib/readings/csvExport';
+import { exportRowsAs } from '@/app/lib/readings/csvExport';
 import { PageSection } from '@/app/components/layout/PageSection';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { panel } from '@/app/lib/dashboardStyles';
 import { cn } from '@/app/lib/utils/cn';
-import { useAuth } from '@/app/context/AuthContext';
 
 const TIME_RANGES = [
   { key: 'day', label: 'Day', hours: 24, note: 'Last 24 hours' },
@@ -39,14 +37,6 @@ const COLUMN_GLOSSARY = [
 ];
 
 const MAX_ROWS = 5000;
-const MEASUREMENTS = [
-  'PM2.5',
-  'PM10',
-  'Temperature',
-  'RelativeHumidity',
-  'AbsoluteHumidity',
-  'Pressure',
-];
 
 function choiceCard(active) {
   return cn(
@@ -58,13 +48,10 @@ function choiceCard(active) {
 }
 
 export default function ExportPanel() {
-  const { user } = useAuth();
-  const isAdmin = String(user?.role || '').toUpperCase() === 'ADMIN';
   const [selectedSensors, setSelectedSensors] = useState([]);
-  const [selectedMeasurements, setSelectedMeasurements] = useState(['PM2.5', 'PM10']);
+  const [selectedMeasurements, setSelectedMeasurements] = useState([]);
   const [timeRange, setTimeRange] = useState('week');
   const [format, setFormat] = useState('csv');
-  const [reportType, setReportType] = useState('sensor');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
@@ -107,68 +94,69 @@ export default function ExportPanel() {
     );
   };
 
+  // Measurements actually reported by the selected sensor(s), derived from the
+  // loaded sample — mirrors how analytics narrows options once a sensor is picked.
+  const availableMeasurements = useMemo(() => {
+    const set = new Set();
+    const chosen = new Set(selectedSensors);
+    sensors.forEach((sensor) => {
+      if (!chosen.has(sensor.id)) return;
+      (sensor.measurements || []).forEach((m) => {
+        if (m.measurement) set.add(m.measurement);
+      });
+    });
+    return Array.from(set).sort();
+  }, [sensors, selectedSensors]);
+
+  // When the sensor selection changes, keep only measurements still available;
+  // if that leaves nothing, default to the whole sensor (all measurements).
+  useEffect(() => {
+    setSelectedMeasurements((prev) => {
+      const avail = new Set(availableMeasurements);
+      const kept = prev.filter((m) => avail.has(m));
+      return kept.length ? kept : availableMeasurements;
+    });
+  }, [availableMeasurements]);
+
   const hoursSelected = hoursForDownloadRange(timeRange);
   const rangeMeta = TIME_RANGES.find((r) => r.key === timeRange) ?? TIME_RANGES[1];
-
-  const estimateRows = useMemo(() => {
-    const pointsPerSensor = Math.min(hoursSelected * 4, MAX_ROWS);
-    return pointsPerSensor * selectedSensors.length;
-  }, [hoursSelected, selectedSensors.length]);
 
   const handleDownload = async () => {
     setMessage(null);
     setError(null);
-    if (reportType === 'sensor' && !selectedSensors.length) {
+    const fmtLabel = format.toUpperCase();
+    if (!selectedSensors.length) {
       setError('Select at least one sensor.');
       return;
     }
-    if (reportType === 'sensor' && !selectedMeasurements.length) {
+    if (!selectedMeasurements.length) {
       setError('Select at least one measurement.');
       return;
     }
     setBusy(true);
     try {
       const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-      if (reportType === 'system') {
-        if (!isAdmin) {
-          throw new Error('Only administrators can download system reports');
-        }
-        const logs = await getUsersApi.getAuditLogs({ limit: 500, days: 30 });
-        const mapped = (logs || []).map((log) => ({
-          time: log.createdAt,
-          action: log.action,
-          actorEmail: log.user?.email ?? '',
-          actorRole: log.user?.role ?? '',
-          description: log.description,
-          metadata: JSON.stringify(log.metadata ?? {}),
-        }));
-        const csvBody = toCsv(mapped, [
-          'time',
-          'action',
-          'actorEmail',
-          'actorRole',
-          'description',
-          'metadata',
-        ]);
-        downloadTextFile(
-          `system_report_${stamp}.csv`,
-          '\uFEFF' + csvBody,
-          'text/csv;charset=utf-8;'
-        );
-        setMessage(`Downloaded system report with ${mapped.length} activity row(s).`);
-        setBusy(false);
-        return;
-      }
-
       const hours = hoursForDownloadRange(timeRange);
-      const json = await fetchReadings({
-        limit: MAX_ROWS,
-        page: 1,
-        hours,
-        measurement: selectedMeasurements,
-      });
-      const setIds = new Set(selectedSensors);
-      const filtered = (json.data || []).filter((r) => r.id && setIds.has(r.id));
+      // Fetch per sensor (the backend caps rows per request), so a specific
+      // sensor + measurement selection reliably returns that sensor's data
+      // instead of being crowded out of a shared all-sensor row cap.
+      const perSensor = await Promise.all(
+        selectedSensors.map((id) =>
+          fetchReadings({
+            limit: MAX_ROWS,
+            page: 1,
+            hours,
+            sensorId: id,
+            measurement: selectedMeasurements,
+          })
+            .then((json) => json.data || [])
+            .catch(() => [])
+        )
+      );
+      const selMeas = new Set(selectedMeasurements);
+      const filtered = perSensor
+        .flat()
+        .filter((r) => r.id && selMeas.has(r.measurement));
       if (!filtered.length) {
         setError('No data found for selected sensors/time range.');
         setBusy(false);
@@ -180,35 +168,23 @@ export default function ExportPanel() {
         if (!grouped[key]) {
           grouped[key] = { time: r.time, id: r.id };
         }
-        if (!selectedMeasurements.length || selectedMeasurements.includes(r.measurement)) {
-          grouped[key][r.measurement] = r.value;
-        }
+        grouped[key][r.measurement] = r.value;
       });
       const rows = Object.values(grouped);
       const columns = Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
-      const csvBody = toCsv(rows, columns);
-      if (format === 'pdf') {
-        const note =
-          'Air quality export\n\nPDF is not generated server-side. Use CSV or Excel.\n\n';
-        downloadTextFile(
-          `airquality_${stamp}.txt`,
-          note + csvBody,
-          'text/plain;charset=utf-8;'
-        );
-        setMessage(`Downloaded ${rows.length} row(s) as text + CSV (print for PDF).`);
-      } else {
-        const bom = '\uFEFF';
-        downloadTextFile(
-          `airquality_${stamp}.csv`,
-          bom + csvBody,
-          'text/csv;charset=utf-8;'
-        );
-        setMessage(
-          format === 'excel'
-            ? `Downloaded ${rows.length} row(s) — CSV (Excel-compatible).`
-            : `Downloaded ${rows.length} row(s) as CSV.`
-        );
-      }
+      exportRowsAs(
+        format,
+        rows,
+        columns,
+        `airquality_${stamp}`,
+        'Air quality data export',
+        `${rows.length} row(s) - ${selectedMeasurements.join(', ')} (${timeRange})`
+      );
+      setMessage(
+        format === 'pdf'
+          ? `Prepared ${rows.length} row(s) - use your browser's "Save as PDF" in the print dialog.`
+          : `Downloaded ${rows.length} row(s) as ${fmtLabel}.`
+      );
     } catch (e) {
       setError(e.message || 'Download failed');
     } finally {
@@ -271,37 +247,6 @@ export default function ExportPanel() {
 
       <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
-          <div className={panel()}>
-            <h3 className="mb-3 text-lg font-semibold text-foreground">Report type</h3>
-            <div className="grid gap-3 md:grid-cols-2">
-              <button
-                type="button"
-                className={choiceCard(reportType === 'sensor')}
-                onClick={() => setReportType('sensor')}
-              >
-                <p className="text-sm font-medium text-foreground">Sensor data report</p>
-                <p className="mt-1 text-xs text-muted">
-                  Custom export by sensor, time range, and measurement.
-                </p>
-              </button>
-              <button
-                type="button"
-                className={choiceCard(reportType === 'system')}
-                onClick={() => setReportType('system')}
-                disabled={!isAdmin}
-              >
-                <p className="text-sm font-medium text-foreground">System activity report</p>
-                <p className="mt-1 text-xs text-muted">
-                  Audit logs: login, logout, API key actions, and admin operations.
-                </p>
-                {!isAdmin && (
-                  <p className="mt-1 text-xs text-aqi-unhealthy">Administrators only</p>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {reportType === 'sensor' && (
           <div className={cn(panel(), 'min-w-0 overflow-hidden')}>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-lg font-semibold text-foreground">1. Select sensors</h3>
@@ -347,14 +292,15 @@ export default function ExportPanel() {
                           onChange={() => toggleSensor(sensor.id)}
                         />
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-medium text-foreground break-words">
-                            {formatSensorLabel(sensor.id)}
-                          </span>
                           <span
-                            className="mt-0.5 block font-mono text-xs text-muted break-all line-clamp-3 sm:line-clamp-2"
+                            className="block truncate text-sm font-medium text-foreground"
                             title={sensor.id}
                           >
-                            {sensor.id}
+                            {formatSensorLabel(sensor.id)}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-muted">
+                            {new Set((sensor.measurements || []).map((m) => m.measurement)).size}{' '}
+                            measurement type(s)
                           </span>
                         </span>
                       </label>
@@ -364,9 +310,7 @@ export default function ExportPanel() {
               </ul>
             )}
           </div>
-          )}
 
-          {reportType === 'sensor' && (
           <div className={panel()}>
             <h3 className="mb-2 text-lg font-semibold text-foreground">2. Time period</h3>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -383,37 +327,66 @@ export default function ExportPanel() {
               ))}
             </div>
           </div>
-          )}
 
-          {reportType === 'sensor' && (
           <div className={panel()}>
-            <h3 className="mb-3 text-lg font-semibold text-foreground">3. Measurements</h3>
-            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-              {MEASUREMENTS.map((measurement) => {
-                const selected = selectedMeasurements.includes(measurement);
-                return (
-                  <label key={measurement} className={choiceCard(selected)}>
-                    <input
-                      type="checkbox"
-                      className="mr-2 h-4 w-4 align-middle"
-                      checked={selected}
-                      onChange={() => toggleMeasurement(measurement)}
-                    />
-                    <span className="text-sm font-medium text-foreground">{measurement}</span>
-                  </label>
-                );
-              })}
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-semibold text-foreground">3. Measurements</h3>
+              {availableMeasurements.length > 0 && (
+                <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1 sm:flex-none"
+                    onClick={() => setSelectedMeasurements(availableMeasurements)}
+                  >
+                    Whole sensor
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1 sm:flex-none"
+                    onClick={() => setSelectedMeasurements([])}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              )}
             </div>
+            {!selectedSensors.length ? (
+              <p className="text-sm text-muted">Select a sensor first to see its measurements.</p>
+            ) : availableMeasurements.length === 0 ? (
+              <p className="text-sm text-muted">
+                No measurements found for the selected sensor(s) in the recent sample.
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                {availableMeasurements.map((measurement) => {
+                  const selected = selectedMeasurements.includes(measurement);
+                  return (
+                    <label key={measurement} className={choiceCard(selected)}>
+                      <input
+                        type="checkbox"
+                        className="mr-2 h-4 w-4 align-middle"
+                        checked={selected}
+                        onChange={() => toggleMeasurement(measurement)}
+                      />
+                      <span className="text-sm font-medium text-foreground">{measurement}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          )}
 
           <div className={panel()}>
             <h3 className="mb-4 text-lg font-semibold text-foreground">Export format</h3>
             <div className="grid gap-4 md:grid-cols-3">
               {[
                 { value: 'csv', icon: FileText, label: 'CSV', hint: 'UTF-8 with BOM' },
-                { value: 'excel', icon: FileSpreadsheet, label: 'Excel', hint: 'CSV for Excel' },
-                { value: 'pdf', icon: FileText, label: 'PDF note', hint: 'Print to PDF' },
+                { value: 'json', icon: FileJson, label: 'JSON', hint: 'Structured records' },
+                { value: 'pdf', icon: FileText, label: 'PDF', hint: 'Print / Save as PDF' },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -435,26 +408,26 @@ export default function ExportPanel() {
             <h3 className="mb-4 text-lg font-semibold text-foreground">Summary</h3>
             <dl className="space-y-2 text-sm text-muted">
               <div className="flex justify-between gap-2">
-                <dt>Report type</dt>
-                <dd className="font-medium text-foreground capitalize">{reportType}</dd>
+                <dt>Sensors</dt>
+                <dd className="font-medium text-foreground">{selectedSensors.length}</dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt>Sensors</dt>
-                <dd className="font-medium text-foreground">
-                  {reportType === 'system' ? 'N/A' : selectedSensors.length}
-                </dd>
+                <dt>Measurements</dt>
+                <dd className="font-medium text-foreground">{selectedMeasurements.length}</dd>
               </div>
               <div className="flex justify-between gap-2">
                 <dt>Range</dt>
-                <dd className="font-medium text-foreground capitalize">
-                  {reportType === 'system' ? 'Recent 500 events' : timeRange}
-                </dd>
+                <dd className="font-medium text-foreground capitalize">{timeRange}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt>Format</dt>
+                <dd className="font-medium text-foreground uppercase">{format}</dd>
               </div>
             </dl>
             <Button
               type="button"
               className="mt-6 w-full"
-              disabled={busy || (reportType === 'sensor' && (!selectedSensors.length || !selectedMeasurements.length))}
+              disabled={busy || !selectedSensors.length || !selectedMeasurements.length}
               onClick={handleDownload}
             >
               <DownloadIcon className="mr-2 h-4 w-4" />
@@ -475,8 +448,8 @@ export default function ExportPanel() {
               How it works
             </h4>
             <ol className="list-decimal list-inside space-y-2 text-sm text-muted">
-              <li>Choose Sensor report or System report (admin only).</li>
-              <li>Filter by sensor, timeframe, and measurement.</li>
+              <li>Pick sensors, a time range, and the measurements you want.</li>
+              <li>Choose an export format: CSV, JSON, or PDF.</li>
               <li>Download runs in the browser from the readings API.</li>
             </ol>
           </div>

@@ -1,11 +1,15 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, HttpCode, HttpStatus, Query } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 
+@ApiTags('Users')
+@ApiBearerAuth('JWT')
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
@@ -50,6 +54,18 @@ export class UsersController {
   @Patch('me')
   updateMe(@Request() req: { user: { id: number } }, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.updateMe(req.user.id, updateUserDto);
+  }
+
+  @Patch('me/password')
+  changePassword(
+    @Request() req: { user: { id: number } },
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    return this.usersService.changePassword(
+      req.user.id,
+      changePasswordDto.currentPassword,
+      changePasswordDto.newPassword,
+    );
   }
 
   @Get(':id')

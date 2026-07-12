@@ -71,9 +71,18 @@ export function formatSensorLabel(sensorId, registryLabel) {
     return FRIENDLY_LABELS[slug];
   }
   if (!slug) return 'Unknown sensor';
+
+  // Recognise common device families so names stay short and structured.
+  const lower = slug.toLowerCase();
+  if (lower.includes('bme680')) return 'BME680';
+  if (lower.includes('lands')) return 'Lands Building';
+  if (lower.includes('plan')) return 'Planning Building';
+
+  // Fallback: title-case, but keep it short (first 3 words at most).
   return slug
     .split('-')
     .filter(Boolean)
+    .slice(0, 3)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }

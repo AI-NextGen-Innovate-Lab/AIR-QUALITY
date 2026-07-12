@@ -127,12 +127,12 @@ export function HomePage() {
 
           <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
             <StatCard icon={TrendingUp} value={loading ? '—' : Math.round(city.aqi)} label="City AQI" />
-            <StatCard icon={Activity} value={loading ? '—' : countOnlineSensors(sensors)} label="Sensors online" />
+            <StatCard icon={Activity} value={loading ? '—' : countOnlineSensors(sensors)} label="Sensors Offline" />
             <StatCard icon={MapPin} value={loading ? '—' : 1} label="City covered" />
             <StatCard
               icon={AlertTriangle}
               value={loading ? '—' : countOfflineSensors(sensors)}
-              label="Offline sensors"
+              label="Online sensors"
               accent={countOfflineSensors(sensors) > 0 ? 'warn' : undefined}
             />
             <StatCard icon={Shield} value={loading ? '—' : goodLocationsCount} label="Good air zones" accent="good" />
@@ -213,12 +213,12 @@ export function HomePage() {
                 <li>All admin actions on API keys are audit-logged.</li>
               </ul>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link to="/api-docs">
+                {/* <Link to="/api-docs">
                   <Button variant="secondary" type="button">
                     <BookOpen className="h-4 w-4" />
                     API documentation
                   </Button>
-                </Link>
+                </Link> */}
                 {user && (
                   <Link to="/api-access">
                     <Button type="button">Request API access</Button>

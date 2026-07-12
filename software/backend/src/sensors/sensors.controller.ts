@@ -14,6 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SensorsService } from './sensors.service.js';
 import { CreateSensorDto } from './dto/create-sensor.dto.js';
 import { UpdateSensorDto } from './dto/update-sensor.dto.js';
@@ -21,6 +22,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 
+@ApiTags('Sensors')
+@ApiBearerAuth('JWT')
 @Controller('sensors')
 export class SensorsController {
   constructor(

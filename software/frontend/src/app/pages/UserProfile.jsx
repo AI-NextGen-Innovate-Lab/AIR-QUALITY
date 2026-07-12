@@ -10,6 +10,7 @@ import {
   Calendar,
   Hash,
   Loader2,
+  Palette,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DashboardPage } from '@/app/components/layout/DashboardPage';
@@ -17,8 +18,9 @@ import { PageHeader } from '@/app/components/layout/PageHeader';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { ErrorBlock, LoadingBlock } from '@/app/components/data/DataState';
-import { fetchMyProfile, updateMyProfile } from '@/app/lib/api/profile';
-import { panel, tabBtn, inputClass, labelClass } from '@/app/lib/dashboardStyles';
+import { fetchMyProfile, updateMyProfile, changeMyPassword } from '@/app/lib/api/profile';
+import { panel, tabBtn, labelClass } from '@/app/lib/dashboardStyles';
+import { ThemeSelector } from '@/app/components/ThemeSelector';
 import { cn } from '@/app/lib/utils/cn';
 
 function ProfileField({ icon: Icon, children, className }) {
@@ -63,6 +65,29 @@ function formatDate(iso) {
   }
 }
 
+function validatePassword(password) {
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  const hasSpecialChar = /[@$!%*?&]/.test(password);
+  const isLongEnough = password.length >= 8;
+  return {
+    isValid:
+      hasUpperCase &&
+      hasLowerCase &&
+      hasNumber &&
+      hasSpecialChar &&
+      isLongEnough,
+    errors: [
+      !isLongEnough && 'At least 8 characters',
+      !hasUpperCase && 'One uppercase letter',
+      !hasLowerCase && 'One lowercase letter',
+      !hasNumber && 'One number',
+      !hasSpecialChar && 'One special character (@$!%*?&)',
+    ].filter(Boolean),
+  };
+}
+
 export default function UserProfile() {
   const { user: sessionUser, token, loading: authLoading, setUser, logout } = useAuth();
   const [profile, setProfile] = useState(null);
@@ -71,6 +96,14 @@ export default function UserProfile() {
   const [error, setError] = useState(null);
   const [name, setName] = useState('');
   const [tab, setTab] = useState('profile');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [newPasswordValidation, setNewPasswordValidation] = useState({
+    isValid: false,
+    errors: [],
+  });
 
   useEffect(() => {
     if (authLoading) return;
@@ -131,6 +164,45 @@ export default function UserProfile() {
       setSaving(false);
     }
   };
+
+  const handleNewPasswordChange = (value) => {
+    setNewPassword(value);
+    setNewPasswordValidation(validatePassword(value));
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword) {
+      toast.error('Enter your current password');
+      return;
+    }
+    if (!newPasswordValidation.isValid) {
+      toast.error('New password does not meet the requirements');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await changeMyPassword({ currentPassword, newPassword });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setNewPasswordValidation({ isValid: false, errors: [] });
+      toast.success('Password updated successfully');
+    } catch (e) {
+      toast.error(e.message || 'Failed to change password');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const canChangePassword =
+    currentPassword.length > 0 &&
+    newPasswordValidation.isValid &&
+    newPassword === confirmPassword;
 
   if (authLoading || (token && loading)) {
     return (
@@ -242,9 +314,10 @@ export default function UserProfile() {
           <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-4">
             {[
               { id: 'profile', label: 'Profile' },
+              { id: 'appearance', label: 'Appearance' },
               { id: 'security', label: 'Security' },
-              { id: 'notifications', label: 'Notifications' },
-              { id: 'api', label: 'API access' },
+              // { id: 'notifications', label: 'Notifications' },
+              // { id: 'api', label: 'API access' },
             ].map((t) => (
               <button
                 key={t.id}
@@ -326,21 +399,108 @@ export default function UserProfile() {
             </div>
           )}
 
+          {tab === 'appearance' && (
+            <div className={panel()}>
+              <div className="mb-6 flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                  <Palette className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">Appearance</h3>
+                  <p className="mt-1 text-sm text-muted">
+                    Choose light, dark, or match your device setting. Your preference is saved on this browser.
+                  </p>
+                </div>
+              </div>
+              <ThemeSelector />
+            </div>
+          )}
+
           {tab === 'security' && (
             <div className={panel()}>
               <h3 className="mb-4 text-xl font-bold text-foreground">Security</h3>
               <p className="text-base text-muted leading-relaxed">
-                Password changes are not available in the app yet. Use a strong unique
-                password when registering.
+                Change your account password. You will stay signed in after updating it.
               </p>
-              <div className="mt-6">
-                <label className={labelClass}>Password</label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  className={cn(inputClass, 'mt-2')}
-                  disabled
-                />
+              <div className="mt-6 space-y-5">
+                <div>
+                  <label htmlFor="current-password" className={labelClass}>
+                    Current password
+                  </label>
+                  <ProfileField icon={Key} className="mt-2">
+                    <input
+                      id="current-password"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      autoComplete="current-password"
+                      className="flex-1 border-0 bg-transparent py-3 text-base focus:outline-none"
+                    />
+                  </ProfileField>
+                </div>
+                <div>
+                  <label htmlFor="new-password" className={labelClass}>
+                    New password
+                  </label>
+                  <ProfileField icon={Key} className="mt-2">
+                    <input
+                      id="new-password"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => handleNewPasswordChange(e.target.value)}
+                      autoComplete="new-password"
+                      className="flex-1 border-0 bg-transparent py-3 text-base focus:outline-none"
+                    />
+                  </ProfileField>
+                  {newPassword.length > 0 && (
+                    <ul className="mt-2 space-y-1 text-xs text-muted">
+                      {[
+                        ['8 characters', !newPasswordValidation.errors.some((e) => e.includes('8'))],
+                        ['uppercase', !newPasswordValidation.errors.some((e) => e.includes('uppercase'))],
+                        ['lowercase', !newPasswordValidation.errors.some((e) => e.includes('lowercase'))],
+                        ['number', !newPasswordValidation.errors.some((e) => e.includes('number'))],
+                        ['special', !newPasswordValidation.errors.some((e) => e.includes('special'))],
+                      ].map(([label, ok]) => (
+                        <li key={label} className={ok ? 'text-aqi-good' : 'text-muted'}>
+                          {ok ? '✓' : '○'} {label}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="confirm-password" className={labelClass}>
+                    Confirm new password
+                  </label>
+                  <ProfileField icon={Key} className="mt-2">
+                    <input
+                      id="confirm-password"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      autoComplete="new-password"
+                      className="flex-1 border-0 bg-transparent py-3 text-base focus:outline-none"
+                    />
+                  </ProfileField>
+                  {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+                    <p className="mt-2 text-sm text-aqi-unhealthy">Passwords do not match</p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto"
+                  onClick={handleChangePassword}
+                  disabled={changingPassword || !canChangePassword}
+                >
+                  {changingPassword ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Updating…
+                    </>
+                  ) : (
+                    'Change password'
+                  )}
+                </Button>
               </div>
             </div>
           )}

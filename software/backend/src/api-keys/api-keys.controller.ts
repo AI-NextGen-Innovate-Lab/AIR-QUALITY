@@ -11,6 +11,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ApiKeysService } from './api-keys.service.js';
 import { CreateApiKeyRequestDto } from './dto/create-api-key-request.dto.js';
 import { RejectApiKeyRequestDto } from './dto/reject-api-key-request.dto.js';
@@ -35,6 +36,8 @@ function parseKeyStatus(status?: string): ApiKeyStatus | undefined {
   return undefined;
 }
 
+@ApiTags('API Keys')
+@ApiBearerAuth('JWT')
 @Controller('api-keys')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ApiKeysController {

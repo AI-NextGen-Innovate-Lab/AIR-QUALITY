@@ -1,8 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
 
 import { AuthProvider } from './app/context/AuthContext';
+import { ThemedToaster } from './app/components/ThemedToaster';
 import AppShell from './app/components/layout/AppShell';
 
 import HomePage from './app/pages/HomePage';
@@ -25,7 +25,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Toaster position="top-right" richColors closeButton />
+        <ThemedToaster />
         <Routes>
           <Route element={<AppShell />}>
             {/* Public */}
@@ -47,7 +47,7 @@ function App() {
             <Route
               path="/user-dashboard"
               element={
-                <ProtectedRoutes roles={['user', 'admin', 'owner']}>
+                <ProtectedRoutes roles={['user', 'owner']}>
                   <DataDashboard />
                 </ProtectedRoutes>
               }
@@ -56,7 +56,7 @@ function App() {
             <Route
               path="/api-access"
               element={
-                <ProtectedRoutes roles={['user', 'admin', 'owner']}>
+                <ProtectedRoutes roles={['user', 'owner']}>
                   <ApiAccess />
                 </ProtectedRoutes>
               }
@@ -65,7 +65,7 @@ function App() {
             <Route
               path="/download"
               element={
-                <ProtectedRoutes roles={['user', 'admin', 'owner']}>
+                <ProtectedRoutes roles={['user', 'owner']}>
                   <Download />
                 </ProtectedRoutes>
               }

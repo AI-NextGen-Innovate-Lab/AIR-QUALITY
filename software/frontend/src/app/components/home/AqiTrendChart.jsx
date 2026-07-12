@@ -10,6 +10,13 @@ import {
 } from 'recharts';
 import { calculateAQI } from '@/app/lib/airQuality';
 import { Card, CardContent } from '@/app/components/ui/card';
+import {
+  chartAxisTick,
+  chartAxisStroke,
+  chartGridProps,
+  chartLineBrand,
+  chartTooltipStyle,
+} from '@/app/lib/chartTheme';
 
 function bucketHourlyAqi(readings) {
   const buckets = new Map();
@@ -68,22 +75,17 @@ export function AqiTrendChart({ readings = [], loading }) {
                   <stop offset="100%" stopColor="#14b8a6" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
+              <CartesianGrid {...chartGridProps} vertical={false} />
+              <XAxis dataKey="label" tick={chartAxisTick} axisLine={false} tickLine={false} stroke={chartAxisStroke} />
+              <YAxis tick={chartAxisTick} axisLine={false} tickLine={false} width={32} stroke={chartAxisStroke} />
               <Tooltip
-                contentStyle={{
-                  background: '#ffffff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '12px',
-                  color: '#0f172a',
-                }}
+                contentStyle={chartTooltipStyle}
                 formatter={(value) => [`AQI ${value}`, 'Index']}
               />
               <Area
                 type="monotone"
                 dataKey="aqi"
-                stroke="#0d9488"
+                stroke={chartLineBrand}
                 strokeWidth={2}
                 fill="url(#aqiGradient)"
               />
