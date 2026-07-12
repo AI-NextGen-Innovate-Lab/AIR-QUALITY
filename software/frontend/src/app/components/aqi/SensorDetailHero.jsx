@@ -29,7 +29,7 @@ export function SensorDetailHero({
             <ArrowLeft className="w-4 h-4" />
             Back
           </Button>
-          {onExport && (
+          {/* {onExport && (
             <Button
               variant="secondary"
               size="sm"
@@ -39,7 +39,7 @@ export function SensorDetailHero({
               <Download className="w-4 h-4" />
               Export CSV
             </Button>
-          )}
+          )} */}
         </div>
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">

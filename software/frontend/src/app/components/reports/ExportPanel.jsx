@@ -292,14 +292,15 @@ export default function ExportPanel() {
                           onChange={() => toggleSensor(sensor.id)}
                         />
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-medium text-foreground break-words">
-                            {formatSensorLabel(sensor.id)}
-                          </span>
                           <span
-                            className="mt-0.5 block font-mono text-xs text-muted break-all line-clamp-3 sm:line-clamp-2"
+                            className="block truncate text-sm font-medium text-foreground"
                             title={sensor.id}
                           >
-                            {sensor.id}
+                            {formatSensorLabel(sensor.id)}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-muted">
+                            {new Set((sensor.measurements || []).map((m) => m.measurement)).size}{' '}
+                            measurement type(s)
                           </span>
                         </span>
                       </label>

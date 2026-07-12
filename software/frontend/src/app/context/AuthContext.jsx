@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { fetchMyProfile } from "@/app/lib/api/profile";
+import { queryClient } from "@/app/lib/queryClient";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/backend/api";
 
@@ -17,9 +18,14 @@ export function AuthProvider({ children }) {
     setError(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+    // Drop any cached readings so a previous identity's data (incl. private
+    // sensors) can never be shown to the next user on a shared browser.
+    queryClient.clear();
   }, []);
 
   const saveSession = useCallback((userData, authToken) => {
+    // Clear cache first so no prior identity's cached data survives a login.
+    queryClient.clear();
     setUserState(userData);
     setToken(authToken);
     localStorage.setItem("user", JSON.stringify(userData));

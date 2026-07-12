@@ -7,7 +7,7 @@ export const FRIENDLY_LABELS = {
   'lands-building': 'Lands Building',
   'planing-building': 'Planning Building',
   'planning-building': 'Planning Building',
-  'bme680-ph-dox-full-sensor-test': 'BME680 Test',
+  'bme680-ph-dox-full-sensor-test': 'BME680',
 };
 
 /**
