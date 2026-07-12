@@ -15,10 +15,10 @@ export const FRIENDLY_LABELS = {
  * Update these when you have surveyed GPS for each sensor.
  */
 const KNOWN_LOCATIONS = {
-  'lands-building': { lat: -6.7738, lng: 39.2262 },
-  'planing-building': { lat: -6.7752, lng: 39.2278 },
-  'planning-building': { lat: -6.7752, lng: 39.2278 },
-  'bme680-ph-dox-full-sensor-test': { lat: -6.7741, lng: 39.2255 },
+  'lands-building': { lat: -6.7662175, lng: 39.2140654},
+  'planing-building':{ lat: -6.763590, lng: 39.214680 },
+  'planning-building': { lat: -6.763590, lng: 39.214680 },
+  'bme680-ph-dox-full-sensor-test': { lat: -6.763590, lng: 39.214680 },
 };
 
 export function extractDeviceSlug(topicId) {

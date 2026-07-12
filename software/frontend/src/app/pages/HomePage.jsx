@@ -213,12 +213,12 @@ export function HomePage() {
                 <li>All admin actions on API keys are audit-logged.</li>
               </ul>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link to="/api-docs">
+                {/* <Link to="/api-docs">
                   <Button variant="secondary" type="button">
                     <BookOpen className="h-4 w-4" />
                     API documentation
                   </Button>
-                </Link>
+                </Link> */}
                 {user && (
                   <Link to="/api-access">
                     <Button type="button">Request API access</Button>

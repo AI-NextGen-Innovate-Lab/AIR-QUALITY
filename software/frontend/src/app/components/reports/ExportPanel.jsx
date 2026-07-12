@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Download as DownloadIcon,
   FileText,
-  FileSpreadsheet,
+  FileJson,
   Calendar,
   CheckCircle,
   HelpCircle,
@@ -14,7 +14,7 @@ import { fetchReadings } from '@/app/lib/api';
 import { getUsersApi } from '@/app/lib/api/users';
 import { groupReadingsBySensor, formatSensorLabel } from '@/app/lib/sensorData';
 import { hoursForDownloadRange } from '@/app/lib/readings/downloadFilters';
-import { downloadTextFile, toCsv } from '@/app/lib/readings/csvExport';
+import { downloadTextFile, toCsv, printRowsAsPdf } from '@/app/lib/readings/csvExport';
 import { PageSection } from '@/app/components/layout/PageSection';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent } from '@/app/components/ui/card';
@@ -110,14 +110,29 @@ export default function ExportPanel() {
   const hoursSelected = hoursForDownloadRange(timeRange);
   const rangeMeta = TIME_RANGES.find((r) => r.key === timeRange) ?? TIME_RANGES[1];
 
-  const estimateRows = useMemo(() => {
-    const pointsPerSensor = Math.min(hoursSelected * 4, MAX_ROWS);
-    return pointsPerSensor * selectedSensors.length;
-  }, [hoursSelected, selectedSensors.length]);
+  // Emit already-built rows in the chosen format (shared by both report types).
+  const exportRows = (rows, columns, baseName, title, subtitle) => {
+    if (format === 'json') {
+      downloadTextFile(
+        `${baseName}.json`,
+        JSON.stringify(rows, null, 2),
+        'application/json;charset=utf-8;'
+      );
+    } else if (format === 'pdf') {
+      printRowsAsPdf(title, columns, rows, subtitle);
+    } else {
+      downloadTextFile(
+        `${baseName}.csv`,
+        '﻿' + toCsv(rows, columns),
+        'text/csv;charset=utf-8;'
+      );
+    }
+  };
 
   const handleDownload = async () => {
     setMessage(null);
     setError(null);
+    const fmtLabel = format.toUpperCase();
     if (reportType === 'sensor' && !selectedSensors.length) {
       setError('Select at least one sensor.');
       return;
@@ -142,33 +157,39 @@ export default function ExportPanel() {
           description: log.description,
           metadata: JSON.stringify(log.metadata ?? {}),
         }));
-        const csvBody = toCsv(mapped, [
-          'time',
-          'action',
-          'actorEmail',
-          'actorRole',
-          'description',
-          'metadata',
-        ]);
-        downloadTextFile(
-          `system_report_${stamp}.csv`,
-          '\uFEFF' + csvBody,
-          'text/csv;charset=utf-8;'
+        exportRows(
+          mapped,
+          ['time', 'action', 'actorEmail', 'actorRole', 'description', 'metadata'],
+          `system_report_${stamp}`,
+          'System activity report',
+          `${mapped.length} activity row(s)`
         );
-        setMessage(`Downloaded system report with ${mapped.length} activity row(s).`);
+        setMessage(`Downloaded system report with ${mapped.length} activity row(s) as ${fmtLabel}.`);
         setBusy(false);
         return;
       }
 
       const hours = hoursForDownloadRange(timeRange);
-      const json = await fetchReadings({
-        limit: MAX_ROWS,
-        page: 1,
-        hours,
-        measurement: selectedMeasurements,
-      });
-      const setIds = new Set(selectedSensors);
-      const filtered = (json.data || []).filter((r) => r.id && setIds.has(r.id));
+      // Fetch per sensor (the backend caps rows per request), so a specific
+      // sensor + measurement selection reliably returns that sensor's data
+      // instead of being crowded out of a shared all-sensor row cap.
+      const perSensor = await Promise.all(
+        selectedSensors.map((id) =>
+          fetchReadings({
+            limit: MAX_ROWS,
+            page: 1,
+            hours,
+            sensorId: id,
+            measurement: selectedMeasurements,
+          })
+            .then((json) => json.data || [])
+            .catch(() => [])
+        )
+      );
+      const selMeas = new Set(selectedMeasurements);
+      const filtered = perSensor
+        .flat()
+        .filter((r) => r.id && selMeas.has(r.measurement));
       if (!filtered.length) {
         setError('No data found for selected sensors/time range.');
         setBusy(false);
@@ -180,35 +201,22 @@ export default function ExportPanel() {
         if (!grouped[key]) {
           grouped[key] = { time: r.time, id: r.id };
         }
-        if (!selectedMeasurements.length || selectedMeasurements.includes(r.measurement)) {
-          grouped[key][r.measurement] = r.value;
-        }
+        grouped[key][r.measurement] = r.value;
       });
       const rows = Object.values(grouped);
       const columns = Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
-      const csvBody = toCsv(rows, columns);
-      if (format === 'pdf') {
-        const note =
-          'Air quality export\n\nPDF is not generated server-side. Use CSV or Excel.\n\n';
-        downloadTextFile(
-          `airquality_${stamp}.txt`,
-          note + csvBody,
-          'text/plain;charset=utf-8;'
-        );
-        setMessage(`Downloaded ${rows.length} row(s) as text + CSV (print for PDF).`);
-      } else {
-        const bom = '\uFEFF';
-        downloadTextFile(
-          `airquality_${stamp}.csv`,
-          bom + csvBody,
-          'text/csv;charset=utf-8;'
-        );
-        setMessage(
-          format === 'excel'
-            ? `Downloaded ${rows.length} row(s) — CSV (Excel-compatible).`
-            : `Downloaded ${rows.length} row(s) as CSV.`
-        );
-      }
+      exportRows(
+        rows,
+        columns,
+        `airquality_${stamp}`,
+        'Air quality data export',
+        `${rows.length} row(s) - ${selectedMeasurements.join(', ')} (${timeRange})`
+      );
+      setMessage(
+        format === 'pdf'
+          ? `Prepared ${rows.length} row(s) - use your browser's "Save as PDF" in the print dialog.`
+          : `Downloaded ${rows.length} row(s) as ${fmtLabel}.`
+      );
     } catch (e) {
       setError(e.message || 'Download failed');
     } finally {
@@ -412,8 +420,8 @@ export default function ExportPanel() {
             <div className="grid gap-4 md:grid-cols-3">
               {[
                 { value: 'csv', icon: FileText, label: 'CSV', hint: 'UTF-8 with BOM' },
-                { value: 'excel', icon: FileSpreadsheet, label: 'Excel', hint: 'CSV for Excel' },
-                { value: 'pdf', icon: FileText, label: 'PDF note', hint: 'Print to PDF' },
+                { value: 'json', icon: FileJson, label: 'JSON', hint: 'Structured records' },
+                { value: 'pdf', icon: FileText, label: 'PDF', hint: 'Print / Save as PDF' },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -445,10 +453,20 @@ export default function ExportPanel() {
                 </dd>
               </div>
               <div className="flex justify-between gap-2">
+                <dt>Measurements</dt>
+                <dd className="font-medium text-foreground">
+                  {reportType === 'system' ? 'N/A' : selectedMeasurements.length}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-2">
                 <dt>Range</dt>
                 <dd className="font-medium text-foreground capitalize">
                   {reportType === 'system' ? 'Recent 500 events' : timeRange}
                 </dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt>Format</dt>
+                <dd className="font-medium text-foreground uppercase">{format}</dd>
               </div>
             </dl>
             <Button
