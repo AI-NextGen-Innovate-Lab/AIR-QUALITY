@@ -1,46 +1,40 @@
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-import { AuthProvider } from "./app/context/AuthContext";
-import { SensorProvider } from "./app/context/SensorContext";
+import { AuthProvider } from './app/context/AuthContext';
+import { ThemedToaster } from './app/components/ThemedToaster';
+import AppShell from './app/components/layout/AppShell';
 
-import HomePage from "./app/pages/HomePage";
-import MapPage from "./app/pages/MapPage";
-import LoginPage from "./app/pages/LoginPage";
-import DataDashboard from "./app/pages/DataDashboard";
-import Download from "./app/pages/Download";
-import PrivateSensor from "./app/pages/PrivateSensor";
-import AdminPanel from "./app/pages/AdminPanel";
-import SensorStatus from "./app/pages/SensorStatus";
-import UserProfile from "./app/pages/UserProfile";
-import LocationDetails from "./app/pages/LocationDetails";
-import PredictionPage from "./app/pages/PredictionPage";
-import HealthGuidePage from "./app/pages/HealthGuidePage";
+import HomePage from './app/pages/HomePage';
+import MapPage from './app/pages/MapPage';
+import LoginPage from './app/pages/LoginPage';
+import DataDashboard from './app/pages/DataDashboard';
+import Download from './app/pages/Download';
+import PrivateSensor from './app/pages/PrivateSensor';
+import AdminPanel from './app/pages/AdminPanel';
+import SensorStatus from './app/pages/SensorStatus';
+import UserProfile from './app/pages/UserProfile';
+import LocationDetails from './app/pages/LocationDetails';
+import APIDocumentation from './app/pages/APIDocumentation';
+import ApiAccess from './app/pages/ApiAccess';
 
-import Header from "./app/components/Header";
-import { Footer } from "./app/components/Footer";
-import ProtectedRoutes from "./app/routes/ProtectedRoutes";
-import RoleRedirect from "./app/routes/RoleRedirect";
+import ProtectedRoutes from './app/routes/ProtectedRoutes';
+import RoleRedirect from './app/routes/RoleRedirect';
 
 function App() {
   return (
     <AuthProvider>
-      <SensorProvider>
-        <BrowserRouter>
-          <div className="flex flex-col min-h-screen">
-            <Header />
-
-            <main className="flex-1 flex flex-col">
-              <Routes>
-                {/* Public Routes */}
+      <BrowserRouter>
+        <ThemedToaster />
+        <Routes>
+          <Route element={<AppShell />}>
+            {/* Public */}
             <Route path="/" element={<HomePage />} />
             <Route path="/map" element={<MapPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/api-docs" element={<APIDocumentation />} />
+            <Route path="/sensor/:sensorId" element={<LocationDetails />} />
 
-            <Route path="/prediction" element={<PredictionPage />} />
-            <Route path="/health-guide" element={<HealthGuidePage />} />
-
-            {/* Role-based Dashboard Redirect - Default for authenticated users */}
             <Route
               path="/dashboard"
               element={
@@ -50,12 +44,20 @@ function App() {
               }
             />
 
-            {/* USER Dashboard Routes */}
             <Route
               path="/user-dashboard"
               element={
-                <ProtectedRoutes roles={["user"]}>
+                <ProtectedRoutes roles={['user', 'owner']}>
                   <DataDashboard />
+                </ProtectedRoutes>
+              }
+            />
+
+            <Route
+              path="/api-access"
+              element={
+                <ProtectedRoutes roles={['user', 'owner']}>
+                  <ApiAccess />
                 </ProtectedRoutes>
               }
             />
@@ -63,16 +65,16 @@ function App() {
             <Route
               path="/download"
               element={
-                <ProtectedRoutes roles={["user", "admin", "owner"]}>
+                <ProtectedRoutes roles={['user', 'owner']}>
                   <Download />
                 </ProtectedRoutes>
               }
             />
-            
+
             <Route
               path="/admin"
               element={
-                <ProtectedRoutes roles={["admin"]}>
+                <ProtectedRoutes roles={['admin']}>
                   <AdminPanel />
                 </ProtectedRoutes>
               }
@@ -81,23 +83,21 @@ function App() {
             <Route
               path="/sensor-status"
               element={
-                <ProtectedRoutes roles={["admin"]}>
+                <ProtectedRoutes roles={['admin']}>
                   <SensorStatus />
                 </ProtectedRoutes>
               }
             />
 
-            {/* OWNER Routes */}
             <Route
               path="/private-sensors"
               element={
-                <ProtectedRoutes roles={["owner", "admin"]}>
+                <ProtectedRoutes roles={['owner']}>
                   <PrivateSensor />
                 </ProtectedRoutes>
               }
             />
 
-            {/* Shared Protected Routes */}
             <Route
               path="/profile"
               element={
@@ -107,18 +107,10 @@ function App() {
               }
             />
 
-            {/* Dynamic route for sensor details */}
-            <Route path="/sensor/:sensorId" element={<LocationDetails />} />
-
-            {/* Catch-all redirect */}
             <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
-            
-            <Footer />
-          </div>
-        </BrowserRouter>
-      </SensorProvider>
+          </Route>
+        </Routes>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

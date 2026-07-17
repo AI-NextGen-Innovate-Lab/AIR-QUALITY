@@ -1,1 +1,253 @@
-@import "tailwindcss"
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Brand — teal / civic (not AQI semantic) */
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+
+  /* Surfaces & text — soft light theme (readable contrast) */
+  --color-surface: #f8fafc;
+  --color-surface-elevated: #ffffff;
+  --color-foreground: #0f172a;
+  --color-muted: #475569;
+  --color-muted-foreground: #64748b;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+
+  /* AQI semantic (EPA scale — data only) */
+  --color-aqi-good: #22c55e;
+  --color-aqi-good-soft: #dcfce7;
+  --color-aqi-moderate: #eab308;
+  --color-aqi-moderate-soft: #fef9c3;
+  --color-aqi-sensitive: #f97316;
+  --color-aqi-sensitive-soft: #ffedd5;
+  --color-aqi-unhealthy: #ef4444;
+  --color-aqi-unhealthy-soft: #fee2e2;
+  --color-aqi-very-unhealthy: #7c3aed;
+  --color-aqi-very-unhealthy-soft: #ede9fe;
+  --color-aqi-hazardous: #7f1d1d;
+  --color-aqi-hazardous-soft: #fecaca;
+
+  /* Layout */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+
+  --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.06);
+  --shadow-card-hover: 0 10px 15px -3px rgb(15 23 42 / 0.08),
+    0 4px 6px -4px rgb(15 23 42 / 0.06);
+
+  --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    @apply bg-surface text-foreground;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+}
+
+/* Dark mode — semantic tokens */
+.dark {
+  --color-brand-50: #042f2e;
+  --color-brand-100: #134e4a;
+  --color-brand-500: #2dd4bf;
+  --color-brand-600: #14b8a6;
+  --color-brand-700: #5eead4;
+  --color-brand-800: #99f6e4;
+
+  --color-surface: #0b1220;
+  --color-surface-elevated: #151f32;
+  --color-foreground: #f1f5f9;
+  --color-muted: #94a3b8;
+  --color-muted-foreground: #64748b;
+  --color-border: #1e293b;
+  --color-border-strong: #334155;
+
+  --color-aqi-good-soft: #14532d;
+  --color-aqi-moderate-soft: #713f12;
+  --color-aqi-sensitive-soft: #7c2d12;
+  --color-aqi-unhealthy-soft: #7f1d1d;
+  --color-aqi-very-unhealthy-soft: #4c1d95;
+  --color-aqi-hazardous-soft: #450a0a;
+
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-card-hover: 0 10px 15px -3px rgb(0 0 0 / 0.45),
+    0 4px 6px -4px rgb(0 0 0 / 0.35);
+}
+
+/* Leaflet — Dar es Salaam map */
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--color-border);
+}
+
+.dark .leaflet-popup-content-wrapper {
+  background: var(--color-surface-elevated);
+  color: var(--color-foreground);
+}
+
+.dark .leaflet-popup-tip {
+  background: var(--color-surface-elevated);
+}
+
+.aqi-leaflet-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.aqi-marker-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 2px solid var(--color-surface-elevated);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.25);
+  transition: transform 0.15s ease;
+}
+
+.dark .aqi-marker-pin {
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.45);
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-card-hover);
+}
+
+.leaflet-control-attribution {
+  font-size: 10px;
+}
+
+/* Homepage — large type, card motion, soft pulse */
+@layer utilities {
+  .card-interactive {
+    transition:
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.35s ease;
+  }
+
+  .card-interactive:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .card-interactive:active {
+    transform: translateY(-2px);
+    transition-duration: 0.15s;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+  .animate-delay-400 {
+    animation-delay: 400ms;
+  }
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .pulse-soft {
+    animation: pulse-soft 3s ease-in-out infinite;
+  }
+
+  .pulse-ring {
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .pulse-glow {
+    animation: pulse-glow 2.5s ease-in-out infinite;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.88;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(13 148 136 / 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgb(13 148 136 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(13 148 136 / 0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-interactive {
+    transition: box-shadow 0.2s ease;
+  }
+  .card-interactive:hover {
+    transform: none;
+  }
+  .animate-fade-in-up,
+  .pulse-soft,
+  .pulse-ring,
+  .pulse-glow {
+    animation: none;
+  }
+}

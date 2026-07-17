@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams, Link } from 'react-router-dom';
 import {
   LineChart,
   Line,
@@ -11,50 +12,45 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { 
-  Calendar, 
-  TrendingUp, 
-  Database, 
-  Filter, 
-  Search, 
-  ChevronUp, 
+import {
+  Calendar,
+  TrendingUp,
+  Database,
+  Filter,
+  Search,
+  ChevronUp,
   ChevronDown,
   Download,
-  Eye,
   Activity,
-  MapPin,
   Clock,
-  ArrowUpDown
-} from "lucide-react";
-
-import { useReadings } from "@/app/hooks/useReadings";
-import { groupReadingsBySensor } from "@/app/lib/sensorData";
+} from 'lucide-react';
+import { useReadings } from '@/app/hooks/useReadings';
+import { groupReadingsBySensor } from '@/app/lib/sensorData';
 import {
   buildBucketedSeries,
   buildLocationComparison,
   filterRowsBySensor,
-} from "@/app/lib/readings/chartSeries";
-
-function panel() {
-  return "rounded-xl border border-gray-100 bg-white p-6 shadow-sm hover:shadow-md transition-shadow duration-300";
-}
-
-function selectClass() {
-  return "mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
-}
-
-function inputClass() {
-  return "mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
-}
-
-function badgeClass(value) {
-  if (value <= 50) return "bg-green-100 text-green-800";
-  if (value <= 100) return "bg-yellow-100 text-yellow-800";
-  if (value <= 150) return "bg-orange-100 text-orange-800";
-  return "bg-red-100 text-red-800";
-}
+} from '@/app/lib/readings/chartSeries';
+import { DashboardPage } from '@/app/components/layout/DashboardPage';
+import { PageHeader } from '@/app/components/layout/PageHeader';
+import { StatCard } from '@/app/components/data/StatCard';
+import { AqiBadge } from '@/app/components/data/AqiBadge';
+import { ErrorBlock, LoadingBlock } from '@/app/components/data/DataState';
+import { Button } from '@/app/components/ui/button';
+import {
+  panel,
+  selectClass,
+  inputClass,
+  labelClass,
+} from '@/app/lib/dashboardStyles';
+import { cn } from '@/app/lib/utils/cn';
+import { tabBtn } from '@/app/lib/dashboardStyles';
+import ExportPanel from '@/app/components/reports/ExportPanel';
 
 export default function DataDashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = searchParams.get('tab') === 'export' ? 'export' : 'analytics';
+  const setView = (id) => setSearchParams(id === 'analytics' ? {} : { tab: id });
   const [selectedSensor, setSelectedSensor] = useState("");
   const [timeRange, setTimeRange] = useState("7d");
   const [series, setSeries] = useState("AQI");
@@ -189,74 +185,76 @@ export default function DataDashboard() {
     URL.revokeObjectURL(url);
   };
 
-  const getAQIStatus = (aqi) => {
-    if (aqi <= 50) return { status: "Good", color: "text-green-600" };
-    if (aqi <= 100) return { status: "Moderate", color: "text-yellow-600" };
-    if (aqi <= 150) return { status: "Unhealthy for Sensitive Groups", color: "text-orange-600" };
-    return { status: "Unhealthy", color: "text-red-600" };
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Air Quality Dashboard
-            </h1>
-            <p className="text-gray-600 mt-2">Real-time sensor monitoring and analytics</p>
+    <DashboardPage>
+      <PageHeader
+        badge="Analytics & Reports"
+        title="Data dashboard"
+        description="Charts, comparisons, and customizable data exports."
+        action={
+          view === 'analytics' ? (
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-elevated px-4 py-2 text-sm">
+            <Activity className="h-4 w-4 text-brand-700" />
+            <span className="font-medium text-foreground">Live</span>
+            <span className="h-2 w-2 rounded-full bg-aqi-good animate-pulse" />
           </div>
-          <div className="flex gap-2">
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm">
-              <Activity className="h-5 w-5 text-blue-500" />
-              <span className="text-sm font-medium">Live</span>
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        {/* FILTERS */}
-        <div className={`${panel()} mb-6`}>
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-blue-500" />
-              <h3 className="text-lg font-semibold">Filters & Controls</h3>
-            </div>
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+          ) : (
+            <Link
+              to="/api-docs"
+              className="inline-flex items-center gap-2 text-sm font-medium text-brand-700 hover:text-brand-800"
             >
+              API documentation
+            </Link>
+          )
+        }
+      />
+
+      <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-3">
+        <button type="button" className={tabBtn(view === 'analytics')} onClick={() => setView('analytics')}>
+          Analytics
+        </button>
+        <button type="button" className={tabBtn(view === 'export')} onClick={() => setView('export')}>
+          Reports & export
+        </button>
+      </div>
+
+      {view === 'export' ? (
+        <ExportPanel />
+      ) : (
+      <>
+      {error && <ErrorBlock message={error} className="mb-6" />}
+
+        <div className={panel('mb-6')}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Filter className="h-5 w-5 text-brand-700" />
+              <h3 className="text-lg font-semibold text-foreground">Filters</h3>
+            </div>
+            <Button type="button" variant="secondary" size="sm" onClick={handleExportCSV}>
               <Download className="h-4 w-4" />
               Export CSV
-            </button>
+            </Button>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label className="text-sm font-medium text-gray-700">Sensor Location</label>
+              <label className={labelClass}>Sensor</label>
               <select
-                className={selectClass()}
+                className={cn(selectClass, 'mt-1')}
                 value={selectedSensor}
                 onChange={(e) => setSelectedSensor(e.target.value)}
               >
                 {sensors.map((s) => (
                   <option key={s.id} value={s.id}>
-                    📍 {s.id}
+                    {s.id}
                   </option>
                 ))}
               </select>
             </div>
-
             <div>
-              <label className="text-sm font-medium text-gray-700">Time Range</label>
+              <label className={labelClass}>Time range</label>
               <select
-                className={selectClass()}
+                className={cn(selectClass, 'mt-1')}
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value)}
               >
@@ -265,11 +263,10 @@ export default function DataDashboard() {
                 <option value="30d">Last 30 days</option>
               </select>
             </div>
-
             <div>
-              <label className="text-sm font-medium text-gray-700">Metric</label>
+              <label className={labelClass}>Metric</label>
               <select
-                className={selectClass()}
+                className={cn(selectClass, 'mt-1')}
                 value={series}
                 onChange={(e) => setSeries(e.target.value)}
               >
@@ -283,139 +280,113 @@ export default function DataDashboard() {
           </div>
         </div>
 
-        {/* STATS CARDS */}
-        <div className="grid md:grid-cols-4 gap-4 mb-6">
-          <div className={`${panel()} bg-gradient-to-br from-blue-50 to-blue-100`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Average AQI</p>
-                <p className="text-3xl font-bold text-blue-600">
-                  {loading ? "—" : stats.avg.toFixed(0)}
-                </p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-blue-400" />
-            </div>
-          </div>
-          
-          <div className={`${panel()} bg-gradient-to-br from-red-50 to-red-100`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Max AQI</p>
-                <p className="text-3xl font-bold text-red-600">
-                  {loading ? "—" : stats.max}
-                </p>
-              </div>
-              <Activity className="h-8 w-8 text-red-400" />
-            </div>
-          </div>
-          
-          <div className={`${panel()} bg-gradient-to-br from-green-50 to-green-100`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Min AQI</p>
-                <p className="text-3xl font-bold text-green-600">
-                  {loading ? "—" : stats.min}
-                </p>
-              </div>
-              <Database className="h-8 w-8 text-green-400" />
-            </div>
-          </div>
-          
-          <div className={`${panel()} bg-gradient-to-br from-purple-50 to-purple-100`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Records</p>
-                <p className="text-3xl font-bold text-purple-600">
-                  {chartData.length}
-                </p>
-              </div>
-              <Clock className="h-8 w-8 text-purple-400" />
-            </div>
-          </div>
+        <div className="mb-6 grid gap-4 md:grid-cols-4">
+          <StatCard
+            icon={TrendingUp}
+            value={loading ? '—' : stats.avg.toFixed(0)}
+            label="Average AQI"
+          />
+          <StatCard
+            icon={Activity}
+            value={loading ? '—' : stats.max}
+            label="Max AQI"
+            accent="map"
+          />
+          <StatCard
+            icon={Database}
+            value={loading ? '—' : stats.min}
+            label="Min AQI"
+            accent="good"
+          />
+          <StatCard icon={Clock} value={chartData.length} label="Buckets" />
         </div>
 
-        {/* CHART */}
-        <div className={`${panel()} mb-6`}>
+        <div className={panel('mb-6')}>
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold text-lg">{series} Trend Analysis</h3>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <h3 className="text-lg font-semibold text-foreground">{series} trend</h3>
+            <div className="flex items-center gap-2 text-sm text-muted">
               <Clock className="h-4 w-4" />
-              <span>{timeRange === "24h" ? "Hourly" : timeRange === "7d" ? "2-hour" : "6-hour"} intervals</span>
+              <span>
+                {timeRange === '24h'
+                  ? '15-min'
+                  : timeRange === '7d'
+                    ? '2-hour'
+                    : '6-hour'}{' '}
+                buckets
+              </span>
             </div>
           </div>
-
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="timeLabel" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: "white", 
-                  borderRadius: "8px",
-                  border: "1px solid #e5e7eb",
-                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
-                }}
-              />
-              <Legend />
-              <Line 
-                dataKey={series} 
-                stroke="#2563eb" 
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 6, fill: "#2563eb" }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <LoadingBlock message="Loading chart…" />
+          ) : (
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="timeLabel" stroke="var(--color-muted)" fontSize={12} />
+                <YAxis stroke="var(--color-muted)" fontSize={12} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'var(--color-surface-elevated)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--color-border)',
+                  }}
+                />
+                <Legend />
+                <Line
+                  dataKey={series}
+                  stroke="var(--color-brand-600)"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 6, fill: 'var(--color-brand-600)' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
-        {/* COMPARISON CHART */}
-        <div className={`${panel()} mb-6`}>
-          <h3 className="mb-4 font-semibold text-lg">Location Comparison</h3>
+        <div className={panel('mb-6')}>
+          <h3 className="mb-4 text-lg font-semibold text-foreground">Location comparison</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={comparisonData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="name" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" stroke="var(--color-muted)" fontSize={11} />
+              <YAxis stroke="var(--color-muted)" fontSize={12} />
               <Tooltip />
-              <Bar dataKey="AQI" fill="#2563eb" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="AQI" fill="var(--color-brand-600)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* ENHANCED DATA TABLE */}
         <div className={panel()}>
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-blue-500" />
-              <h3 className="text-lg font-semibold">Sensor Data History</h3>
-              <span className="text-sm text-gray-500">
-                ({tableData.length} records)
-              </span>
+              <Calendar className="h-5 w-5 text-brand-700" />
+              <h3 className="text-lg font-semibold text-foreground">History</h3>
+              <span className="text-sm text-muted">({tableData.length} records)</span>
             </div>
-            
+
             <div className="flex gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
-                  type="text"
-                  placeholder="Search records..."
+                  type="search"
+                  placeholder="Search records…"
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={cn(inputClass, 'pl-9 w-48 sm:w-64')}
                 />
               </div>
-              
+
               <select
                 value={itemsPerPage}
                 onChange={(e) => {
                   setItemsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={selectClass}
               >
                 <option value={10}>10 per page</option>
                 <option value={25}>25 per page</option>
@@ -425,13 +396,13 @@ export default function DataDashboard() {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-sm">
-              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+              <thead className="border-b border-border bg-surface">
                 <tr>
-                  <th 
-                    className="py-3 px-4 text-left cursor-pointer hover:bg-gray-200 transition-colors"
-                    onClick={() => handleSort("timeLabel")}
+                  <th
+                    className="cursor-pointer px-4 py-3 text-left transition-colors hover:bg-surface-elevated"
+                    onClick={() => handleSort('timeLabel')}
                   >
                     <div className="flex items-center gap-2">
                       Time
@@ -440,13 +411,15 @@ export default function DataDashboard() {
                       )}
                     </div>
                   </th>
-                  <th className="py-3 px-4 text-left">AQI Status</th>
-                  {availableSeries.map((col) => visibleColumns[col] !== false && (
-                    <th 
-                      key={col} 
-                      className="py-3 px-4 text-right cursor-pointer hover:bg-gray-200 transition-colors"
-                      onClick={() => handleSort(col)}
-                    >
+                  <th className="px-4 py-3 text-left text-muted font-medium">AQI</th>
+                  {availableSeries.map(
+                    (col) =>
+                      visibleColumns[col] !== false && (
+                        <th
+                          key={col}
+                          className="cursor-pointer px-4 py-3 text-right transition-colors hover:bg-surface-elevated"
+                          onClick={() => handleSort(col)}
+                        >
                       <div className="flex items-center justify-end gap-2">
                         {col}
                         {sortConfig.key === col && (
@@ -461,46 +434,48 @@ export default function DataDashboard() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={availableSeries.length + 2} className="text-center py-8">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                        Loading data...
-                      </div>
+                    <td
+                      colSpan={availableSeries.length + 2}
+                      className="py-8 text-center text-muted"
+                    >
+                      Loading data…
                     </td>
                   </tr>
                 ) : paginatedData.length === 0 ? (
                   <tr>
-                    <td colSpan={availableSeries.length + 2} className="text-center py-8 text-gray-500">
+                    <td
+                      colSpan={availableSeries.length + 2}
+                      className="py-8 text-center text-muted"
+                    >
                       No records found
                     </td>
                   </tr>
                 ) : (
-                  paginatedData.map((row, i) => {
-                    const aqiStatus = getAQIStatus(row.AQI);
-                    return (
-                      <tr key={i} className="border-b border-gray-100 hover:bg-blue-50 transition-colors">
-                        <td className="py-3 px-4 font-medium text-gray-900">
-                          {row.timeLabel}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${badgeClass(row.AQI)}`}>
-                            {aqiStatus.status}
-                          </span>
-                        </td>
-                        {availableSeries.map((col) => visibleColumns[col] !== false && (
-                          <td key={col} className="py-3 px-4 text-right font-mono">
-                            {col === "AQI" ? (
-                              <span className={aqiStatus.color}>
-                                {row[col] ?? "—"}
-                              </span>
-                            ) : (
-                              row[col] ?? "—"
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })
+                  paginatedData.map((row, i) => (
+                    <tr
+                      key={i}
+                      className="border-b border-border transition-colors hover:bg-surface"
+                    >
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        {row.timeLabel}
+                      </td>
+                      <td className="px-4 py-3">
+                        {row.AQI != null ? (
+                          <AqiBadge aqi={row.AQI} />
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      {availableSeries.map(
+                        (col) =>
+                          visibleColumns[col] !== false && (
+                            <td key={col} className="px-4 py-3 text-right font-mono tabular-nums">
+                              {row[col] ?? '—'}
+                            </td>
+                          )
+                      )}
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -508,58 +483,63 @@ export default function DataDashboard() {
 
           {/* Pagination */}
           {!loading && tableData.length > 0 && (
-            <div className="mt-4 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, tableData.length)} of {tableData.length} records
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="text-sm text-muted">
+                Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
+                {Math.min(currentPage * itemsPerPage, tableData.length)} of{' '}
+                {tableData.length} records
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
                   disabled={currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 >
                   Previous
-                </button>
+                </Button>
                 <div className="flex gap-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    
+                    if (totalPages <= 5) pageNum = i + 1;
+                    else if (currentPage <= 3) pageNum = i + 1;
+                    else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                    else pageNum = currentPage - 2 + i;
                     return (
                       <button
                         key={pageNum}
+                        type="button"
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                        className={cn(
+                          'rounded-lg px-3 py-1 text-sm transition-colors',
                           currentPage === pageNum
-                            ? "bg-blue-500 text-white"
-                            : "border border-gray-300 hover:bg-gray-50"
-                        }`}
+                            ? 'bg-brand-600 text-white'
+                            : 'border border-border hover:bg-surface'
+                        )}
                       >
                         {pageNum}
                       </button>
                     );
                   })}
                 </div>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </>
+      )}
+    </DashboardPage>
   );
 }

@@ -3,7 +3,7 @@
  */
 export function connectionStatusFromLastMs(lastTimeMs) {
   if (!lastTimeMs) {
-    return { key: "offline", label: "No data", dotClass: "bg-gray-400" };
+    return { key: "offline", label: "No data", dotClass: "bg-muted-foreground" };
   }
   const ageMin = (Date.now() - lastTimeMs) / 60000;
   if (ageMin < 60) {

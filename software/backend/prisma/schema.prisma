@@ -22,6 +22,29 @@ model User{
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   activityLogs ActivityLog[]
+  apiKeyRequests ApiKeyRequest[] @relation("UserApiKeyRequests")
+  reviewedApiKeyRequests ApiKeyRequest[] @relation("ReviewedApiKeyRequests")
+  apiKeys ApiKey[] @relation("UserApiKeys")
+  revokedApiKeys ApiKey[] @relation("RevokedApiKeys")
+  ownedSensors Sensor[] @relation("OwnedSensors")
+}
+
+enum SensorVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+model Sensor {
+  id         Int              @id @default(autoincrement())
+  topic      String           @unique
+  label      String?
+  latitude   Float?
+  longitude  Float?
+  visibility SensorVisibility @default(PUBLIC)
+  ownerId    Int?
+  owner      User?            @relation("OwnedSensors", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 }
 
 model ActivityLog{
@@ -38,4 +61,48 @@ enum Role{
   USER
   ADMIN
   OWNER
+}
+
+enum ApiKeyRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+model ApiKeyRequest {
+  id         Int                 @id @default(autoincrement())
+  userId     Int
+  user       User                @relation("UserApiKeyRequests", fields: [userId], references: [id], onDelete: Cascade)
+  purpose    String
+  status     ApiKeyRequestStatus @default(PENDING)
+  reviewedBy Int?
+  reviewer   User?               @relation("ReviewedApiKeyRequests", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  reviewNote String?
+  createdAt  DateTime            @default(now())
+  reviewedAt DateTime?
+  apiKey     ApiKey?
+}
+
+model ApiKey {
+  id         Int          @id @default(autoincrement())
+  userId     Int
+  user       User         @relation("UserApiKeys", fields: [userId], references: [id], onDelete: Cascade)
+  requestId  Int?         @unique
+  request    ApiKeyRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  keyPrefix  String
+  keyHash    String
+  label      String?
+  status     ApiKeyStatus @default(ACTIVE)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime     @default(now())
+  revokedAt  DateTime?
+  revokedBy  Int?
+  revoker    User?        @relation("RevokedApiKeys", fields: [revokedBy], references: [id], onDelete: SetNull)
 }

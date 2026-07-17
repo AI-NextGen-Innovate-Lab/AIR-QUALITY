@@ -1,0 +1,20 @@
+PLAN.md
+PLAN.md
+backend/dist/
+backend/generated/
+
+# Prisma generated files
+backend/generated/
+backend/dist/
+backend/dist/**
+backend/generated/**
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# Env
+.env
+.env.docker

@@ -1,40 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
 import { fetchReadings } from '@/app/lib/api';
-import { calculateAQI, getAQICategory } from '@/app/lib/airQuality';
-import {
-  groupReadingsBySensor,
-  sensorSummary,
-  topicToLatLng,
-} from '@/app/lib/sensorData';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-// Fix for default marker icons in Leaflet with React
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
-
-// Custom component to handle map centering
-function ChangeView({ center, zoom }) {
-  const map = useMap();
-  map.setView(center, zoom);
-  return null;
-}
+import { fetchMapMetadata } from '@/app/lib/api/sensors';
+import { useAuth } from '@/app/context/AuthContext';
+import { groupReadingsBySensor, formatSensorLabel } from '@/app/lib/sensorData';
+import { enrichSensorsForMap, registryOnlyMapMarkers } from '@/app/lib/sensorMapUtils';
+import { SensorMap } from '@/app/components/map/SensorMap';
+import { PageSection } from '@/app/components/layout/PageSection';
+import { LoadingBlock, ErrorBlock, EmptyBlock } from '@/app/components/data/DataState';
+import { Card, CardContent } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
+import { cn } from '@/app/lib/utils/cn';
 
 export function MapPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [selectedSensor, setSelectedSensor] = useState(null);
   const [sensors, setSensors] = useState([]);
+  const [registry, setRegistry] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -44,9 +27,13 @@ export function MapPage() {
       setLoading(true);
       setError(null);
       try {
-        const json = await fetchReadings({ limit: 1000, page: 1 });
+        const [json, meta] = await Promise.all([
+          fetchReadings({ limit: 1000, page: 1 }),
+          fetchMapMetadata(),
+        ]);
         if (cancelled) return;
         setSensors(groupReadingsBySensor(json.data || []));
+        setRegistry(Array.isArray(meta) ? meta : []);
       } catch (e) {
         if (!cancelled) setError(e.message || 'Failed to load readings');
       } finally {
@@ -56,204 +43,117 @@ export function MapPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user?.id, user?.role]);
 
-  const sensorsWithCoords = useMemo(
-    () =>
-      sensors.map((s) => {
-        const { lat, lng, label } = topicToLatLng(s.id);
-        const { pm25, pm10 } = sensorSummary(s);
-        const aqi = calculateAQI(pm25, pm10).value;
-        return {
-          ...s,
-          lat,
-          lng,
-          label: label || s.id,
-          aqi,
-          category: getAQICategory(aqi),
-        };
-      }),
-    [sensors]
-  );
-
+  const sensorsWithCoords = useMemo(() => {
+    const withData = enrichSensorsForMap(sensors, registry);
+    const withoutData = registryOnlyMapMarkers(registry, sensors);
+    return [...withData, ...withoutData].sort((a, b) => (b.aqi ?? 0) - (a.aqi ?? 0));
+  }, [sensors, registry]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Air Quality Map
-          </h1>
-         
-        </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+      <PageSection
+        title="Air quality map"
+        description="OpenStreetMap view of Dar es Salaam. Colored markers show live AQI per station — not a heat map."
+        className="py-0"
+      />
 
-        {loading && (
-          <p className="text-gray-600 mb-4">Loading sensor positions…</p>
-        )}
-        {error && <p className="text-red-600 mb-4">{error}</p>}
+      {loading && <LoadingBlock message="Loading sensor positions…" className="mb-6" />}
+      {error && <ErrorBlock message={error} className="mb-6" />}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 p-6 bg-white rounded-xl shadow relative overflow-hidden" style={{ height: '700px' }}>
-            <MapContainer 
-              center={[-6.769, 39.240]} 
-              zoom={15} 
-              scrollWheelZoom={true}
-              style={{ height: '100%', width: '100%', borderRadius: '0.75rem', zIndex: 1 }}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              
-              <ChangeView center={selectedSensor ? [sensorsWithCoords.find(s => s.id === selectedSensor)?.lat || -6.769, sensorsWithCoords.find(s => s.id === selectedSensor)?.lng || 39.240] : [-6.769, 39.240]} zoom={selectedSensor ? 16 : 15} />
+      {!loading && !error && sensorsWithCoords.length === 0 && (
+        <EmptyBlock
+          title="No stations on the map"
+          description="No sensor readings in the last 24 hours."
+          className="mb-6"
+        />
+      )}
 
-              {sensorsWithCoords.map((sensor) => (
-                <Marker 
-                  key={sensor.id} 
-                  position={[sensor.lat, sensor.lng]}
-                  icon={L.divIcon({
-                    className: 'custom-div-icon',
-                    html: `
-                      <div class="relative transform -translate-x-1/2 -translate-y-1/2">
-                        <div class="w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-all hover:scale-110" style="background-color: ${sensor.category.color}">
-                          <span class="font-bold text-sm" style="color: ${sensor.category.textColor}">${sensor.aqi}</span>
-                        </div>
-                        ${selectedSensor === sensor.id ? `
-                          <div class="absolute -inset-2 rounded-full animate-ping opacity-75" style="background-color: ${sensor.category.color}"></div>
-                        ` : ''}
-                      </div>
-                    `,
-                    iconSize: [48, 48],
-                    iconAnchor: [24, 24]
-                  })}
-                  eventHandlers={{
-                    click: () => setSelectedSensor(sensor.id),
-                  }}
-                >
-                  <Popup>
-                    <div className="p-2 min-w-[150px]">
-                      <p className="font-bold text-sm mb-0.5 text-blue-600">{sensor.label}</p>
-                      <p className="text-[10px] text-gray-400 mb-2 uppercase tracking-tighter">ID: {sensor.id}</p>
-                      <div className="flex items-center justify-between mb-3 bg-slate-50 p-2 rounded-lg">
-                        <span className="text-xs font-medium text-gray-500">Current AQI</span>
-                        <span className="text-lg font-black" style={{ color: sensor.category.color }}>{sensor.aqi}</span>
-                      </div>
-                      <button
-                        onClick={() => navigate(`/sensor/${encodeURIComponent(sensor.id)}`)}
-                        className="w-full bg-slate-900 text-white py-1.5 px-2 rounded-lg text-[11px] font-bold hover:bg-blue-600 transition-all shadow-sm"
-                      >
-                        Detailed Analytics
-                      </button>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 overflow-hidden p-0 border-border">
+          <SensorMap
+            sensors={sensorsWithCoords}
+            selectedId={selectedSensor}
+            onSelectSensor={setSelectedSensor}
+            height={640}
+            showLegend
+            showExpand={false}
+          />
+        </Card>
 
-            {/* Legend Overlay */}
-            <div className="absolute bottom-10 left-10 bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-lg z-[1000] border border-gray-100">
-              <p className="text-sm font-bold text-gray-800 mb-3">Air Quality Index</p>
-              <div className="space-y-2">
-                {[
-                  { label: 'Good', color: '#10b981', range: '0-50' },
-                  { label: 'Moderate', color: '#facc15', range: '51-100' },
-                  { label: 'Sensitive', color: '#f97316', range: '101-150' },
-                  { label: 'Unhealthy', color: '#ef4444', range: '151-200' },
-                  { label: 'Very Unhealthy', color: '#8b5cf6', range: '201-300' },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: item.color }} />
-                    <span className="text-xs font-medium text-gray-600">{item.label}</span>
-                    <span className="text-[10px] text-gray-400 ml-auto">{item.range}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+        <Card className="border-border flex flex-col max-h-[640px]">
+          <CardContent className="py-5 flex flex-col min-h-0 flex-1">
+            <h3 className="font-semibold text-foreground mb-1">Stations</h3>
+            <p className="text-xs text-muted mb-4">Sorted by current AQI</p>
 
-          <div
-            className="p-6 bg-white rounded-xl shadow overflow-y-auto"
-            style={{ maxHeight: '600px' }}
-          >
-            <h3 className="font-semibold text-lg mb-4">Monitoring Stations</h3>
-
-            {!loading && !error && sensorsWithCoords.length === 0 && (
-              <p className="text-sm text-gray-600">
-                No stations with data in the last 24 hours.
-              </p>
-            )}
-
-            <div className="space-y-3">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 -mr-1">
               {sensorsWithCoords.map((sensor) => {
                 const { category } = sensor;
                 const isSelected = selectedSensor === sensor.id;
+                const label = sensor.label || formatSensorLabel(sensor.id);
 
                 return (
                   <div
                     key={sensor.id}
-                    className={`p-3 rounded-lg border border-blue-300 border-2 cursor-pointer ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => setSelectedSensor(sensor.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ')
-                        setSelectedSensor(sensor.id);
-                    }}
                     role="button"
                     tabIndex={0}
+                    onClick={() => setSelectedSensor(sensor.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedSensor(sensor.id);
+                      }
+                    }}
+                    className={cn(
+                      'w-full text-left rounded-xl border p-3 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
+                      isSelected
+                        ? 'border-brand-500 bg-brand-50 ring-1 ring-brand-500/20'
+                        : 'border-border hover:border-border-strong hover:bg-surface'
+                    )}
                   >
-                    <div className="flex justify-between mb-2">
-                      <div className="min-w-0 pr-2">
-                        <p className="font-bold text-sm text-slate-800 truncate">{sensor.label}</p>
-                        <p className="text-[10px] text-slate-400 flex items-center gap-1 uppercase font-bold tracking-tighter">
-                          <MapPin className="w-3 h-3 shrink-0" />
-                          <span className="truncate">{sensor.id}</span>
+                    <div className="flex justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm text-foreground truncate">
+                          {label}
+                        </p>
+                        <p
+                          className="text-xs mt-0.5 font-medium"
+                          style={{ color: category.color }}
+                        >
+                          {category.label}
                         </p>
                       </div>
-
                       <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: category.color }}
+                        className="h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-sm font-bold"
+                        style={{
+                          backgroundColor: category.color,
+                          color: category.textColor,
+                        }}
                       >
-                        <span
-                          className="font-bold text-sm"
-                          style={{ color: category.textColor }}
-                        >
-                          {sensor.aqi}
-                        </span>
+                        {sensor.aqi}
                       </div>
-                    </div>
-
-                    <div
-                      className="inline-block px-2 py-1 rounded text-xs font-medium"
-                      style={{
-                        backgroundColor: category.color,
-                        color: category.textColor,
-                      }}
-                    >
-                      {category.label}
                     </div>
 
                     {isSelected && (
-                      <button
+                      <Button
                         type="button"
-                        className="w-full mt-3 bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+                        size="sm"
+                        className="w-full mt-3"
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/sensor/${encodeURIComponent(sensor.id)}`);
                         }}
                       >
-                        View Details
-                      </button>
+                        View details
+                      </Button>
                     )}
                   </div>
                 );
               })}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

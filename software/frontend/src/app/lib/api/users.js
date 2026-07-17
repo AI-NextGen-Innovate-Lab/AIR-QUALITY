@@ -1,80 +1,93 @@
-import { apiGet, apiPost, buildUrl } from "./client.js";
+import { apiGet, apiPost, apiPatch, apiDelete } from './client.js';
 
+const API_BASE = '/users';
+
+export const getUsersApi = {
+  async getAllUsers() {
+    try {
+      return await apiGet(API_BASE);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      throw error;
+    }
+  },
+
+  async getUserById(id) {
+    try {
+      return await apiGet(`${API_BASE}/${id}`);
+    } catch (error) {
+      console.error(`Failed to fetch user ${id}:`, error);
+      throw error;
+    }
+  },
+
+  async createUser(userData) {
+    try {
+      return await apiPost(API_BASE, userData);
+    } catch (error) {
+      console.error('Failed to create user:', error);
+      throw error;
+    }
+  },
+
+  async updateUser(id, userData) {
+    try {
+      return await apiPatch(`${API_BASE}/${id}`, userData);
+    } catch (error) {
+      console.error(`Failed to update user ${id}:`, error);
+      throw error;
+    }
+  },
+
+  async updateUserRole(id, role) {
+    try {
+      return await apiPatch(`${API_BASE}/${id}/role`, { role });
+    } catch (error) {
+      console.error(`Failed to update user role for ${id}:`, error);
+      throw error;
+    }
+  },
+
+  async deleteUser(id) {
+    try {
+      return await apiDelete(`${API_BASE}/${id}`);
+    } catch (error) {
+      console.error(`Failed to delete user ${id}:`, error);
+      throw error;
+    }
+  },
+
+  async getAuditLogs({ limit = 100, days, from, to } = {}) {
+    try {
+      const params = { limit };
+      if (days != null) params.days = days;
+      if (from) params.from = from;
+      if (to) params.to = to;
+      return await apiGet(`${API_BASE}/audit-logs`, params);
+    } catch (error) {
+      console.error('Failed to fetch audit logs:', error);
+      throw error;
+    }
+  },
+};
+
+/** @deprecated Prefer getUsersApi — kept for api/index.js re-exports */
 export async function fetchUsers() {
-  try {
-    return await apiGet("/users");
-  } catch (error) {
-    console.error("Failed to fetch users:", error);
-    throw error;
-  }
+  return getUsersApi.getAllUsers();
 }
 
 export async function fetchUser(id) {
-  try {
-    return await apiGet(`/users/${id}`);
-  } catch (error) {
-    console.error(`Failed to fetch user ${id}:`, error);
-    throw error;
-  }
+  return getUsersApi.getUserById(id);
 }
 
 export async function createUser(userData) {
-  try {
-    const url = buildUrl("/users");
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify(userData),
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to create user (${res.status})`);
-    }
-    return res.json();
-  } catch (error) {
-    console.error("Failed to create user:", error);
-    throw error;
-  }
+  return getUsersApi.createUser(userData);
 }
 
 export async function updateUser(id, userData) {
-  try {
-    const url = buildUrl(`/users/${id}`);
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify(userData),
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to update user (${res.status})`);
-    }
-    return res.json();
-  } catch (error) {
-    console.error("Failed to update user:", error);
-    throw error;
-  }
+  return getUsersApi.updateUser(id, userData);
 }
 
 export async function deleteUser(id) {
-  try {
-    const url = buildUrl(`/users/${id}`);
-    const res = await fetch(url, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to delete user (${res.status})`);
-    }
-    return res.json();
-  } catch (error) {
-    console.error("Failed to delete user:", error);
-    throw error;
-  }
+  return getUsersApi.deleteUser(id);
 }

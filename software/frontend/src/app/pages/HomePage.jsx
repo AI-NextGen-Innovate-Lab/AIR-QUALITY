@@ -1,59 +1,83 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AQICard } from '@/app/components/AQICard';
-import { fetchReadings } from '@/app/lib/api';
-import {
-  calculateAQI,
-  getAQICategory,
-  getHealthRecommendations,
-} from '@/app/lib/airQuality';
+import React, { useMemo, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Activity, MapPin, Search, TrendingUp, BookOpen, AlertTriangle, Shield } from 'lucide-react';
+import { useAuth } from '@/app/context/AuthContext';
+import { useReadingsQuery } from '@/app/hooks/useReadingsQuery';
+import { calculateAQI } from '@/app/lib/airQuality';
 import {
   groupReadingsBySensor,
   sensorSummary,
+  formatSensorLabel,
 } from '@/app/lib/sensorData';
-import { AlertCircle, TrendingUp, Activity, MapPin } from 'lucide-react';
+import { formatRelativeMinutes } from '@/app/lib/sensors/sensorStatusModel';
+import { AqiHero } from '@/app/components/aqi/AqiHero';
+import { HealthAdvicePanel } from '@/app/components/aqi/HealthAdvicePanel';
+import { StatCard } from '@/app/components/data/StatCard';
+import { LocationCard } from '@/app/components/data/LocationCard';
+import { LoadingBlock, ErrorBlock, EmptyBlock } from '@/app/components/data/DataState';
+import { PageSection } from '@/app/components/layout/PageSection';
+import { Card, CardContent } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
+import { AirEducationSections } from '@/app/components/home/AirEducationSections';
+import {
+  AqiTrendChart,
+  countOfflineSensors,
+  countOnlineSensors,
+} from '@/app/components/home/AqiTrendChart';
+import { MapPreview } from '@/app/components/map/MapPreview';
+import heroBackdrop from '@/assets/pawel-czerwinski-WZ7vr3YcQrg-unsplash.jpg';
 
-function averageCityAQI(sensors) {
-  if (!sensors.length) return 0;
-  const values = sensors
-    .map((s) => {
-      const { pm25, pm10 } = sensorSummary(s);
-      return calculateAQI(pm25, pm10).value;
-    })
-    .filter((v) => v > 0);
-  if (!values.length) return 0;
-  return values.reduce((a, b) => a + b, 0) / values.length;
+function averageCityMetrics(sensors) {
+  if (!sensors.length) return { aqi: 0, pm25: undefined, pm10: undefined, dominant: '—' };
+  const pm25s = [];
+  const pm10s = [];
+  for (const s of sensors) {
+    const { pm25, pm10 } = sensorSummary(s);
+    if (pm25 !== undefined) pm25s.push(pm25);
+    if (pm10 !== undefined) pm10s.push(pm10);
+  }
+  const avg = (arr) =>
+    arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : undefined;
+  const pm25 = avg(pm25s);
+  const pm10 = avg(pm10s);
+  const { value, dominant } = calculateAQI(pm25, pm10);
+  return { aqi: value, pm25, pm10, dominant };
+}
+
+function RoleCtaBanner({ user, navigate }) {
+  if (!user) return null;
+  const role = String(user.role || 'USER').toUpperCase();
+  const config =
+    role === 'ADMIN'
+      ? { label: 'Open Admin Center', path: '/admin' }
+      : role === 'OWNER'
+        ? { label: 'Manage Infrastructure', path: '/private-sensors' }
+        : { label: 'Open Analytics Dashboard', path: '/user-dashboard' };
+
+  return (
+    <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-brand-100 bg-brand-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-sm font-medium text-foreground">Signed in as {user.name}</p>
+        <p className="text-xs text-muted">Access your personalized dashboard and API tools.</p>
+      </div>
+      <Button onClick={() => navigate(config.path)}>{config.label}</Button>
+    </div>
+  );
 }
 
 export function HomePage() {
   const navigate = useNavigate();
-  const [sensors, setSensors] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { user } = useAuth();
+  const [search, setSearch] = useState('');
+  const { loading, error, data: rawReadings } = useReadingsQuery({ limit: 1000, page: 1, hours: 24 });
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const json = await fetchReadings({ limit: 1000, page: 1 });
-        if (cancelled) return;
-        setSensors(groupReadingsBySensor(json.data || []));
-      } catch (e) {
-        if (!cancelled) setError(e.message || 'Failed to load readings');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const sensors = useMemo(() => groupReadingsBySensor(rawReadings), [rawReadings]);
+  const city = useMemo(() => averageCityMetrics(sensors), [sensors]);
 
-  const cityAQI = useMemo(() => averageCityAQI(sensors), [sensors]);
-  const cityCategory = getAQICategory(cityAQI);
-  const recommendations = getHealthRecommendations(cityAQI);
+  const lastRefreshMs = useMemo(
+    () => (sensors.length ? Math.max(...sensors.map((s) => s.lastUpdate || 0)) : 0),
+    [sensors]
+  );
 
   const goodLocationsCount = useMemo(
     () =>
@@ -64,147 +88,153 @@ export function HomePage() {
     [sensors]
   );
 
+  const filteredSensors = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return sensors;
+    return sensors.filter((s) => {
+      const label = formatSensorLabel(s.id).toLowerCase();
+      return s.id.toLowerCase().includes(q) || label.includes(q);
+    });
+  }, [sensors, search]);
+
+  const heroMeta =
+    !loading && !error && lastRefreshMs ? (
+      <span>
+        Live sensor network · {sensors.length} reporting · Updated{' '}
+        {formatRelativeMinutes(lastRefreshMs)}
+      </span>
+    ) : null;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-br from-blue-600 to-cyan-500 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-          <h1 className="text-4xl font-bold mb-2">Dar es Salaam Air Quality</h1>
-          <p className="text-blue-100 text-lg">
-            Real-time monitoring across the city
-          </p>
+    <div>
+      <AqiHero
+        title="Dar es Salaam"
+        subtitle="City-wide air quality intelligence from a live sensor network. Open data for public health and research."
+        aqi={city.aqi}
+        dominantPollutant={city.dominant}
+        pm25={city.pm25}
+        pm10={city.pm10}
+        loading={loading}
+        error={error}
+        meta={heroMeta}
+        backgroundImage={heroBackdrop}
+        backgroundImageAlt="Sky with emissions from an industrial stack"
+      />
 
-          <div className="bg-white p-8 rounded-xl shadow-md text-center max-w-2xl mx-auto mt-8">
-            <p className="text-gray-600 text-sm uppercase mb-2">
-              City-wide Air Quality Index
-            </p>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <PageSection className="py-8">
+          <RoleCtaBanner user={user} navigate={navigate} />
 
-            {loading ? (
-              <p className="text-gray-600 py-12">Loading latest readings…</p>
-            ) : error ? (
-              <p className="text-red-600 py-8">{error}</p>
-            ) : (
-              <>
-                <div
-                  className="w-32 h-32 mx-auto rounded-full flex items-center justify-center mb-4"
-                  style={{ backgroundColor: cityCategory.color }}
-                >
-                  <span
-                    className="font-bold text-5xl"
-                    style={{ color: cityCategory.textColor }}
-                  >
-                    {Math.round(cityAQI)}
-                  </span>
-                </div>
-
-                <div
-                  className="inline-block px-6 py-2 rounded-full mb-4"
-                  style={{ backgroundColor: cityCategory.color }}
-                >
-                  <span
-                    className="text-xl font-semibold"
-                    style={{ color: cityCategory.textColor }}
-                  >
-                    {cityCategory.label}
-                  </span>
-                </div>
-
-                <p className="text-gray-700">{cityCategory.description}</p>
-              </>
-            )}
+          <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <StatCard icon={TrendingUp} value={loading ? '—' : Math.round(city.aqi)} label="City AQI" />
+            <StatCard icon={Activity} value={loading ? '—' : countOnlineSensors(sensors)} label="Sensors Offline" />
+            <StatCard icon={MapPin} value={loading ? '—' : 1} label="City covered" />
+            <StatCard
+              icon={AlertTriangle}
+              value={loading ? '—' : countOfflineSensors(sensors)}
+              label="Online sensors"
+              accent={countOfflineSensors(sensors) > 0 ? 'warn' : undefined}
+            />
+            <StatCard icon={Shield} value={loading ? '—' : goodLocationsCount} label="Good air zones" accent="good" />
           </div>
-        </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div
-          className="mb-8 p-4 rounded-lg bg-white shadow border-l-4"
-          style={{ borderLeftColor: cityCategory.color }}
+          <div className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <AqiTrendChart readings={rawReadings} loading={loading} />
+            </div>
+            <MapPreview sensors={sensors} loading={loading} />
+          </div>
+
+          <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <label className="block flex-1">
+              <span className="sr-only">Search monitoring locations</span>
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by sensor name or topic…"
+                  className="h-12 w-full rounded-2xl border border-border bg-surface-elevated pl-12 pr-4 text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                />
+              </div>
+            </label>
+            <Button type="button" variant="secondary" className="w-full shrink-0 sm:w-auto" onClick={() => navigate('/map')}>
+              <MapPin className="h-4 w-4" />
+              Open city map
+            </Button>
+          </div>
+
+          <HealthAdvicePanel aqi={city.aqi} className="mb-10" />
+        </PageSection>
+
+        <PageSection
+          title="Monitoring locations"
+          description="Tap a station for charts, history, and health guidance for that area."
+          className="border-t border-border pt-8"
         >
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 mt-1 text-gray-600" />
-            <div>
-              <h3 className="font-semibold text-gray-900">
-                Health Recommendations
-              </h3>
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                {recommendations.map((rec, index) => (
-                  <li key={index} className="text-sm text-gray-700">
-                    {rec}
-                  </li>
-                ))}
+          {loading ? (
+            <LoadingBlock message="Loading sensors…" />
+          ) : error ? (
+            <ErrorBlock message={error} />
+          ) : sensors.length === 0 ? (
+            <EmptyBlock
+              title="No sensor data"
+              description="No readings in the last 24 hours. Check that the backend and InfluxDB are running."
+            />
+          ) : filteredSensors.length === 0 ? (
+            <EmptyBlock title="No matches" description={`No sensors match "${search}".`} />
+          ) : (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {filteredSensors.map((sensor) => (
+                <LocationCard
+                  key={sensor.id}
+                  sensorId={sensor.id}
+                  measurements={sensor.measurements}
+                  lastUpdate={sensor.lastUpdate}
+                  onClick={() => navigate(`/sensor/${encodeURIComponent(sensor.id)}`)}
+                />
+              ))}
+            </div>
+          )}
+        </PageSection>
+
+        <PageSection
+          title="Trust & transparency"
+          description="How we measure and publish air quality data."
+          className="border-t border-border pt-8"
+        >
+          <Card className="border-border bg-surface-elevated">
+            <CardContent className="py-6 sm:py-8">
+              <ul className="space-y-2 text-sm text-muted">
+                <li>AQI is computed using the US EPA method from PM₂.₅ and PM₁₀ sub-indices.</li>
+                <li>Sensors publish readings over MQTT into InfluxDB, typically every few minutes.</li>
+                <li>Public access is rate-limited; approved API keys unlock extended history and higher limits.</li>
+                <li>All admin actions on API keys are audit-logged.</li>
               </ul>
-            </div>
-          </div>
-        </div>
+              <div className="mt-6 flex flex-wrap gap-3">
+                {/* <Link to="/api-docs">
+                  <Button variant="secondary" type="button">
+                    <BookOpen className="h-4 w-4" />
+                    API documentation
+                  </Button>
+                </Link> */}
+                {user && (
+                  <Link to="/api-access">
+                    <Button type="button">Request API access</Button>
+                  </Link>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </PageSection>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="p-6 bg-white border border-blue-300 rounded-xl shadow flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg  flex items-center justify-center">
-              <Activity className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{sensors.length}</p>
-              <p className="text-sm text-gray-600">Active Sensors</p>
-            </div>
+        <details className="mb-16 mt-8 rounded-2xl border border-border bg-surface-elevated px-5 py-4">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">Learn more about air quality</summary>
+          <div className="mt-4">
+            <AirEducationSections />
           </div>
-
-          <div className="p-6 bg-white border border-blue-300 rounded-xl shadow flex items-center gap-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{goodLocationsCount}</p>
-              <p className="text-sm text-gray-600">Good Quality Locations</p>
-            </div>
-          </div>
-
-          <div
-            className="p-6 bg-white border border-blue-300 rounded-xl shadow flex items-center gap-4 cursor-pointer hover:shadow-lg"
-            onClick={() => navigate('/map')}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') navigate('/map');
-            }}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <MapPin className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">View Map</p>
-              <p className="text-sm text-gray-600">Interactive City Map</p>
-            </div>
-          </div>
-        </div>
-
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Monitoring Locations
-        </h2>
-
-        {loading ? (
-          <p className="text-gray-600">Loading sensors…</p>
-        ) : error ? (
-          <p className="text-red-600">{error}</p>
-        ) : sensors.length === 0 ? (
-          <p className="text-gray-600">
-            No sensor data in the last 24 hours. Check the backend and InfluxDB
-            connection.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1  md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sensors.map((sensor) => (
-              <AQICard 
-                className="border border-blue-300"
-                key={sensor.id}
-                sensorId={sensor.id}
-                measurements={sensor.measurements}
-                onClick={() =>
-                  navigate(`/sensor/${encodeURIComponent(sensor.id)}`)
-                }
-              />
-            ))}
-          </div>
-        )}
+        </details>
       </div>
     </div>
   );

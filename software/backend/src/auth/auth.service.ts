@@ -16,7 +16,7 @@ export class AuthService {
     userId: number,
     action: string,
     success: boolean,
-    metadata: any = {},
+    metadata: Record<string, unknown> = {},
   ) {
     try {
       const prisma = this.prisma as any;
@@ -33,8 +33,6 @@ export class AuthService {
             },
           },
         });
-      } else {
-        console.warn('ActivityLog model not available in Prisma client');
       }
     } catch (error) {
       console.error('Failed to log auth activity:', error);
@@ -45,7 +43,6 @@ export class AuthService {
     try {
       const { email, password, name } = createAuthDto;
 
-      // Check if user already exists
       const existingUser = await (this.prisma as any).user.findUnique({
         where: { email },
       });
@@ -54,10 +51,8 @@ export class AuthService {
         throw new ConflictException('Email already in use');
       }
 
-      // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Create user
       const user = await (this.prisma as any).user.create({
         data: {
           email,
@@ -73,14 +68,13 @@ export class AuthService {
         },
       });
 
-      await this.logAuthActivity(user.id, 'REGISTER', true);
-
-      // Generate tokens
       const access_token = this.jwt.sign({
         id: user.id,
         email: user.email,
         role: user.role,
       });
+
+      await this.logAuthActivity(user.id, 'REGISTER', true, { email });
 
       return {
         user,
@@ -90,41 +84,37 @@ export class AuthService {
       if (error instanceof ConflictException) {
         throw error;
       }
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
-      
-      // Log the actual error for debugging
+
       console.error('Registration error details:', error);
-      
-      // If it's a Prisma error, provide more context
+
       if (error && typeof error === 'object' && 'code' in error) {
-        const prismaError = error as any;
+        const prismaError = error as { code?: string };
         if (prismaError.code === 'P2002') {
-          throw new ConflictException(`Email already exists`);
+          throw new ConflictException('Email already exists');
         }
       }
-      
+
       throw new BadRequestException(
-        error instanceof Error ? error.message : 'Registration failed'
+        error instanceof Error ? error.message : 'Registration failed',
       );
     }
   }
 
   async login(email: string, password: string) {
     try {
-      // Find user
       const user = await (this.prisma as any).user.findUnique({
         where: { email },
       });
 
       if (!user) {
-        await this.logAuthActivity(0, 'LOGIN', false, { email });
+        console.warn(`AUTH_LOGIN failed for unknown email: ${email}`);
         throw new UnauthorizedException('Invalid credentials');
       }
 
-      // Verify password
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
@@ -132,17 +122,15 @@ export class AuthService {
         throw new UnauthorizedException('Invalid credentials');
       }
 
-      await this.logAuthActivity(user.id, 'LOGIN', true, { email });
-
-      // Generate tokens
       const access_token = this.jwt.sign({
         id: user.id,
         email: user.email,
         role: user.role,
       });
 
-      // Return user without password
       const { password: _, ...userWithoutPassword } = user;
+
+      await this.logAuthActivity(user.id, 'LOGIN', true, { email });
 
       return {
         user: userWithoutPassword,
@@ -163,6 +151,11 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid token');
     }
+  }
+
+  async logout(userId: number, email?: string) {
+    await this.logAuthActivity(userId, 'LOGOUT', true, { email: email ?? null });
+    return { ok: true };
   }
 
   create(createAuthDto: CreateAuthDto) {

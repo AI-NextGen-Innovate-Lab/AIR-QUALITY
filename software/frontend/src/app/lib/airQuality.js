@@ -33,50 +33,86 @@ export function calculateAQI(pm25, pm10) {
   return { value, dominant };
 }
 
-export function getAQICategory(aqi) {
-  const n = Number(aqi) || 0;
-  if (n <= 50)
-    return {
-      label: 'Good',
-      color: '#22c55e',
-      textColor: '#fff',
-      description: 'Air quality is satisfactory; little or no risk.',
-    };
-  if (n <= 100)
-    return {
-      label: 'Moderate',
-      color: '#eab308',
-      textColor: '#000',
-      description: 'Acceptable for most people; unusually sensitive people may have concerns.',
-    };
-  if (n <= 150)
-    return {
-      label: 'Unhealthy (Sensitive)',
-      color: '#f97316',
-      textColor: '#fff',
-      description: 'Members of sensitive groups may experience health effects.',
-    };
-  if (n <= 200)
-    return {
-      label: 'Unhealthy',
-      color: '#ef4444',
-      textColor: '#fff',
-      description: 'Everyone may begin to experience health effects; sensitive groups more serious.',
-    };
-  if (n <= 300)
-    return {
-      label: 'Very Unhealthy',
-      color: '#7c3aed',
-      textColor: '#fff',
-      description: 'Health alert: everyone may experience serious effects.',
-    };
-  return {
+/** @typedef {'good'|'moderate'|'sensitive'|'unhealthy'|'very-unhealthy'|'hazardous'} AqiThemeKey */
+
+const AQI_THEMES = {
+  good: {
+    label: 'Good',
+    themeKey: 'good',
+    color: '#22c55e',
+    bgSoft: '#dcfce7',
+    borderColor: '#86efac',
+    textColor: '#fff',
+    description: 'Air quality is satisfactory; little or no risk.',
+  },
+  moderate: {
+    label: 'Moderate',
+    themeKey: 'moderate',
+    color: '#eab308',
+    bgSoft: '#fef9c3',
+    borderColor: '#fde047',
+    textColor: '#000',
+    description:
+      'Acceptable for most people; unusually sensitive people may have concerns.',
+  },
+  sensitive: {
+    label: 'Unhealthy (Sensitive)',
+    themeKey: 'sensitive',
+    color: '#f97316',
+    bgSoft: '#ffedd5',
+    borderColor: '#fdba74',
+    textColor: '#fff',
+    description: 'Members of sensitive groups may experience health effects.',
+  },
+  unhealthy: {
+    label: 'Unhealthy',
+    themeKey: 'unhealthy',
+    color: '#ef4444',
+    bgSoft: '#fee2e2',
+    borderColor: '#fca5a5',
+    textColor: '#fff',
+    description:
+      'Everyone may begin to experience health effects; sensitive groups more serious.',
+  },
+  'very-unhealthy': {
+    label: 'Very Unhealthy',
+    themeKey: 'very-unhealthy',
+    color: '#7c3aed',
+    bgSoft: '#ede9fe',
+    borderColor: '#c4b5fd',
+    textColor: '#fff',
+    description: 'Health alert: everyone may experience serious effects.',
+  },
+  hazardous: {
     label: 'Hazardous',
+    themeKey: 'hazardous',
     color: '#7f1d1d',
+    bgSoft: '#fecaca',
+    borderColor: '#f87171',
     textColor: '#fff',
     description: 'Emergency conditions; everyone is more likely to be affected.',
-  };
+  },
+};
+
+export function getAQICategory(aqi) {
+  const n = Number(aqi) || 0;
+  if (n <= 50) return { ...AQI_THEMES.good };
+  if (n <= 100) return { ...AQI_THEMES.moderate };
+  if (n <= 150) return { ...AQI_THEMES.sensitive };
+  if (n <= 200) return { ...AQI_THEMES.unhealthy };
+  if (n <= 300) return { ...AQI_THEMES['very-unhealthy'] };
+  return { ...AQI_THEMES.hazardous };
 }
+
+/** US EPA AQI scale segments for scale bars and legends */
+export const AQI_SCALE_SEGMENTS = [
+  { max: 50, ...AQI_THEMES.good },
+  { max: 100, ...AQI_THEMES.moderate },
+  { max: 150, ...AQI_THEMES.sensitive },
+  { max: 200, ...AQI_THEMES.unhealthy },
+  { max: 300, ...AQI_THEMES['very-unhealthy'] },
+  { max: 500, ...AQI_THEMES.hazardous },
+];
 
 export function getHealthRecommendations(aqi) {
   const n = Number(aqi) || 0;
