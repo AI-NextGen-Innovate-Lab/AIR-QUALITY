@@ -1,8 +1,10 @@
 #!/bin/sh
 set -e
 
-echo "Running database migrations..."
-node_modules/.bin/prisma migrate deploy
+echo "Running Prisma migrations..."
 
-echo "Starting application..."
-exec node dist/src/main.js
+npx prisma migrate deploy
+
+echo "Starting NestJS application..."
+
+node dist/main.js

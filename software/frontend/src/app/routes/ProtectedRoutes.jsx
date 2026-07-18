@@ -2,6 +2,7 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { LoadingBlock } from "../components/data/DataState";
 
 /**
  * Component to protect routes and enforce role-based access control
@@ -17,7 +18,7 @@ export default function ProtectedRoutes({
 }) {
   const { user, loading } = useAuth();
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <LoadingBlock message="Checking session…" className="min-h-[40vh]" />;
 
   if (!user) {
     // Not logged in, redirect to login

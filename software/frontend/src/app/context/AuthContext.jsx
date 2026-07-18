@@ -1,40 +1,103 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { fetchMyProfile } from "@/app/lib/api/profile";
+import { queryClient } from "@/app/lib/queryClient";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/backend/api";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUserState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
   const [error, setError] = useState(null);
 
-  // Load user and token from localStorage on mount/refresh
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    const savedToken = localStorage.getItem("token");
-    
-    if (savedUser && savedToken) {
-      try {
-        setUser(JSON.parse(savedUser));
-        setToken(savedToken);
-      } catch (err) {
-        console.error("Failed to parse saved user:", err);
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-      }
-    }
-    setLoading(false);
+  const clearSession = useCallback(() => {
+    setUserState(null);
+    setToken(null);
+    setError(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    // Drop any cached readings so a previous identity's data (incl. private
+    // sensors) can never be shown to the next user on a shared browser.
+    queryClient.clear();
   }, []);
 
-  // Save user and token to localStorage
-  const saveSession = (userData, authToken) => {
-    setUser(userData);
+  const saveSession = useCallback((userData, authToken) => {
+    // Clear cache first so no prior identity's cached data survives a login.
+    queryClient.clear();
+    setUserState(userData);
     setToken(authToken);
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("token", authToken);
-  };
+  }, []);
+
+  const setUser = useCallback((userData) => {
+    setUserState(userData);
+    if (userData) {
+      localStorage.setItem("user", JSON.stringify(userData));
+    } else {
+      localStorage.removeItem("user");
+    }
+  }, []);
+
+  // Restore session: validate JWT, then refresh profile from API
+  useEffect(() => {
+    let cancelled = false;
+
+    async function initSession() {
+      const savedToken = localStorage.getItem("token");
+      const savedUser = localStorage.getItem("user");
+
+      if (!savedToken) {
+        if (savedUser) localStorage.removeItem("user");
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/validate-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: savedToken }),
+        });
+
+        if (!res.ok) {
+          clearSession();
+          if (!cancelled) setLoading(false);
+          return;
+        }
+
+        if (!cancelled) setToken(savedToken);
+
+        try {
+          const profile = await fetchMyProfile();
+          if (!cancelled) {
+            saveSession(profile, savedToken);
+          }
+        } catch (profileErr) {
+          console.warn("Profile refresh failed:", profileErr);
+          if (savedUser && !cancelled) {
+            try {
+              setUserState(JSON.parse(savedUser));
+            } catch {
+              clearSession();
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Session init failed:", err);
+        clearSession();
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    initSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [clearSession, saveSession]);
 
   const login = async (email, password) => {
     setError(null);
@@ -55,6 +118,10 @@ export function AuthProvider({ children }) {
       const data = await response.json();
       const { user: userData, access_token } = data;
 
+      if (!access_token) {
+        throw new Error("Login succeeded but no access token was returned");
+      }
+
       saveSession(userData, access_token);
       return true;
     } catch (err) {
@@ -65,13 +132,24 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    setError(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-  };
+  const logout = useCallback(async () => {
+    try {
+      const activeToken = token || localStorage.getItem("token");
+      if (activeToken) {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${activeToken}`,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("Logout activity logging failed:", err);
+    } finally {
+      clearSession();
+    }
+  }, [token, clearSession]);
 
   const register = async (name, email, password) => {
     setError(null);
@@ -86,15 +164,12 @@ export function AuthProvider({ children }) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        
-        // Extract detailed error message from backend validation
         let errorMessage = "Registration failed";
-        
+
         if (errorData.message) {
           errorMessage = errorData.message;
         }
-        
-        // If there's a detailed errors array, append it
+
         if (errorData.errors && Array.isArray(errorData.errors)) {
           const detailedErrors = errorData.errors
             .map((err) => `${err.field}: ${Object.values(err.errors || {}).join(", ")}`)
@@ -103,13 +178,16 @@ export function AuthProvider({ children }) {
             errorMessage = detailedErrors;
           }
         }
-        
-        console.error("Backend error details:", errorData);
+
         throw new Error(errorMessage);
       }
 
       const data = await response.json();
       const { user: userData, access_token } = data;
+
+      if (!access_token) {
+        throw new Error("Registration succeeded but no access token was returned");
+      }
 
       saveSession(userData, access_token);
       return true;
@@ -132,14 +210,14 @@ export function AuthProvider({ children }) {
       });
 
       if (!response.ok) {
-        logout();
+        clearSession();
         return false;
       }
 
       return true;
     } catch (err) {
       console.error("Token validation error:", err);
-      logout();
+      clearSession();
       return false;
     }
   };
@@ -155,6 +233,7 @@ export function AuthProvider({ children }) {
         logout,
         register,
         validateToken,
+        setUser,
       }}
     >
       {!loading && children}

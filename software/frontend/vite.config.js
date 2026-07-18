@@ -16,6 +16,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      // /backend/api/readings → http://localhost:3000/api/readings (Nest global prefix)
       '/backend': {
         target: 'http://localhost:3000',
         changeOrigin: true,

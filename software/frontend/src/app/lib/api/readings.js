@@ -6,8 +6,18 @@ export function fetchReadings({
   page = 1,
   sensorId,
   hours = 24,
+  measurement,
 } = {}) {
-  return apiGet("/readings", { limit, page, sensorId, hours });
+  const measurementParam = Array.isArray(measurement)
+    ? measurement.join(',')
+    : measurement;
+  return apiGet("/readings", {
+    limit,
+    page,
+    sensorId,
+    hours,
+    measurement: measurementParam,
+  });
 }
 
 export function fetchSensorReadings(sensorId, { limit = 2000, hours = 168 } = {}) {
