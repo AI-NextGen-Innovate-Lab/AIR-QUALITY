@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import {
   AreaChart,
   Area,
@@ -11,6 +10,7 @@ import {
 } from 'recharts';
 import { useAiPredictions } from '@/app/hooks/useAiPredictions';
 import { extractDeviceSlug } from '@/app/lib/sensorData';
+import { trendMeta } from '@/app/lib/aiTrend';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { LoadingBlock, ErrorBlock } from '@/app/components/data/DataState';
 import { cn } from '@/app/lib/utils/cn';
@@ -21,17 +21,6 @@ import {
   chartLineBrand,
   chartTooltipStyle,
 } from '@/app/lib/chartTheme';
-
-const TREND_META = {
-  rising: { label: 'Rising', Icon: TrendingUp, className: 'text-aqi-unhealthy' },
-  falling: { label: 'Falling', Icon: TrendingDown, className: 'text-aqi-good' },
-  stable: { label: 'Stable', Icon: Minus, className: 'text-muted' },
-};
-
-function trendMeta(direction) {
-  const key = String(direction || '').toLowerCase();
-  return TREND_META[key] ?? { label: direction || 'Unknown', Icon: Minus, className: 'text-muted' };
-}
 
 /** Per-sensor 6h AQI forecast + trend, sourced from the AI prediction service. */
 export function AqiForecastPanel({ sensorId, className }) {
@@ -85,7 +74,7 @@ export function AqiForecastPanel({ sensorId, className }) {
         </span>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={180}>
+        <ResponsiveContainer width="100%" height={180} debounce={200}>
           <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="forecastGradient" x1="0" y1="0" x2="0" y2="1">

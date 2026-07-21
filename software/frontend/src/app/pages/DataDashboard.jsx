@@ -46,10 +46,14 @@ import {
 import { cn } from '@/app/lib/utils/cn';
 import { tabBtn } from '@/app/lib/dashboardStyles';
 import ExportPanel from '@/app/components/reports/ExportPanel';
+import AiAnalysisPanel from '@/app/components/reports/AiAnalysisPanel';
+
+const VALID_TABS = ['analytics', 'export', 'ai'];
 
 export default function DataDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const view = searchParams.get('tab') === 'export' ? 'export' : 'analytics';
+  const tabParam = searchParams.get('tab');
+  const view = VALID_TABS.includes(tabParam) ? tabParam : 'analytics';
   const setView = (id) => setSearchParams(id === 'analytics' ? {} : { tab: id });
   const [selectedSensor, setSelectedSensor] = useState("");
   const [timeRange, setTimeRange] = useState("7d");
@@ -192,7 +196,7 @@ export default function DataDashboard() {
         title="Data dashboard"
         description="Charts, comparisons, and customizable data exports."
         action={
-          view === 'analytics' ? (
+          view !== 'export' ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-elevated px-4 py-2 text-sm">
             <Activity className="h-4 w-4 text-brand-700" />
             <span className="font-medium text-foreground">Live</span>
@@ -216,10 +220,15 @@ export default function DataDashboard() {
         <button type="button" className={tabBtn(view === 'export')} onClick={() => setView('export')}>
           Reports & export
         </button>
+        <button type="button" className={tabBtn(view === 'ai')} onClick={() => setView('ai')}>
+          AI Analysis
+        </button>
       </div>
 
       {view === 'export' ? (
         <ExportPanel />
+      ) : view === 'ai' ? (
+        <AiAnalysisPanel />
       ) : (
       <>
       {error && <ErrorBlock message={error} className="mb-6" />}

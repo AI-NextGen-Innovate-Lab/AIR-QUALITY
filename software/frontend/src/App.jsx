@@ -17,6 +17,9 @@ import UserProfile from './app/pages/UserProfile';
 import LocationDetails from './app/pages/LocationDetails';
 import APIDocumentation from './app/pages/APIDocumentation';
 import ApiAccess from './app/pages/ApiAccess';
+import HealthGuidance from './app/pages/HealthGuidance';
+import Predictions from './app/pages/Predictions';
+import About from './app/pages/About';
 
 import ProtectedRoutes from './app/routes/ProtectedRoutes';
 import RoleRedirect from './app/routes/RoleRedirect';
@@ -33,7 +36,10 @@ function App() {
             <Route path="/map" element={<MapPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/api-docs" element={<APIDocumentation />} />
+            <Route path="/about" element={<About />} />
             <Route path="/sensor/:sensorId" element={<LocationDetails />} />
+            <Route path="/health-guidance" element={<HealthGuidance />} />
+            <Route path="/predictions" element={<Predictions />} />
 
             <Route
               path="/dashboard"

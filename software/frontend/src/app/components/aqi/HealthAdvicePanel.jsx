@@ -3,26 +3,8 @@ import { Heart, Sparkles } from 'lucide-react';
 import { getAQICategory, getHealthRecommendations } from '@/app/lib/airQuality';
 import { useAiRecommendation } from '@/app/hooks/useAiRecommendation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { AdviceText } from './AdviceText';
 import { cn } from '@/app/lib/utils/cn';
-
-/** Renders `**bold**` spans and blank-line paragraphs from the LLM advice text — no markdown lib needed. */
-function AdviceText({ text }) {
-  const paragraphs = text.split(/\n{2,}/).filter(Boolean);
-  return (
-    <div className="space-y-3">
-      {paragraphs.map((paragraph, pIdx) => {
-        const parts = paragraph.split('**');
-        return (
-          <p key={pIdx} className="text-sm text-muted leading-relaxed">
-            {parts.map((part, i) =>
-              i % 2 === 1 ? <strong key={i} className="text-foreground">{part}</strong> : part
-            )}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
 
 export function HealthAdvicePanel({ aqi, className, title = 'Health guidance' }) {
   const category = getAQICategory(aqi);
