@@ -15,6 +15,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   X,
+  HeartPulse,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import { useSidebar } from '@/app/context/SidebarContext';
@@ -24,6 +26,8 @@ import logo from '@/assets/logo.jpg';
 const PUBLIC_NAV = [
   { path: '/', label: 'Overview', icon: LayoutDashboard },
   { path: '/map', label: 'Live Map', icon: Map },
+  { path: '/health-guidance', label: 'Health Guidance', icon: HeartPulse },
+  { path: '/predictions', label: 'Predictions', icon: Sparkles },
   // { path: '/api-docs', label: 'Documentation', icon: BookOpen },
 ];
 
