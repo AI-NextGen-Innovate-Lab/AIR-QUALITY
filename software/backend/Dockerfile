@@ -1,6 +1,7 @@
 # =========================
 # Stage 1 - Builder
 # =========================
+
 FROM node:22-alpine AS builder
 
 WORKDIR /app
@@ -22,6 +23,7 @@ RUN npm run build
 # =========================
 # Stage 2 - Production
 # =========================
+
 FROM node:22-alpine AS production
 
 WORKDIR /app
@@ -33,6 +35,9 @@ RUN npm ci --omit=dev --ignore-scripts
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/generated/prisma ./generated/prisma
 COPY --from=builder /app/prisma ./prisma
+
+# IMPORTANT: Prisma config was missing from production image
+COPY --from=builder /app/prisma.config.ts ./
 
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
