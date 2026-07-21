@@ -37,6 +37,7 @@ async function bootstrap() {
     .addTag('API Keys', 'API key request lifecycle and key management')
     .addTag('Users', 'User management and audit logs (admin)')
     .addTag('Health', 'Service health checks')
+    .addTag('AI', 'Predictions, forecasts, and AI-generated health recommendations')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document, {

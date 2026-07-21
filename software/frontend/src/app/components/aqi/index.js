@@ -1,3 +1,4 @@
+export { AqiForecastPanel } from './AqiForecastPanel';
 export { AqiHero } from './AqiHero';
 export { AqiValue } from './AqiValue';
 export { AqiScaleBar } from './AqiScaleBar';

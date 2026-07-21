@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { SensorDetailHero } from "@/app/components/aqi/SensorDetailHero";
 import { HealthAdvicePanel } from "@/app/components/aqi/HealthAdvicePanel";
+import { AqiForecastPanel } from "@/app/components/aqi/AqiForecastPanel";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { connectionStatusFromLastMs } from "@/app/lib/sensors/sensorStatusModel";
@@ -272,6 +273,8 @@ export default function LocationDetails() {
         )}
 
         <HealthAdvicePanel aqi={aqiResult?.value ?? 0} className="mb-8" />
+
+        <AqiForecastPanel sensorId={sensorId} className="mb-8" />
 
         <Card className="mb-8 border-border">
           <CardContent className="pt-6">
