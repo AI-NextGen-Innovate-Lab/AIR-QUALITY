@@ -7,4 +7,4 @@ npx prisma migrate deploy
 
 echo "Starting NestJS application..."
 
-node dist/main.js
+node dist/src/main.js
