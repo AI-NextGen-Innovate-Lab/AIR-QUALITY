@@ -192,7 +192,13 @@ export function HomePage() {
                   sensorId={sensor.id}
                   measurements={sensor.measurements}
                   lastUpdate={sensor.lastUpdate}
-                  onClick={() => navigate(`/sensor/${encodeURIComponent(sensor.id)}`)}
+                  onClick={() =>
+                    navigate(
+                      user
+                        ? `/sensor/${encodeURIComponent(sensor.id)}`
+                        : '/login'
+                    )
+                  }
                 />
               ))}
             </div>

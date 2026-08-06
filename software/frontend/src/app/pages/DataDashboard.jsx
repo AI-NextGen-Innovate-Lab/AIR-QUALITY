@@ -3,8 +3,6 @@ import { useSearchParams, Link } from 'react-router-dom';
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -20,15 +18,14 @@ import {
   Search,
   ChevronUp,
   ChevronDown,
-  Download,
   Activity,
   Clock,
 } from 'lucide-react';
+import { useAuth } from '@/app/context/AuthContext';
 import { useReadings } from '@/app/hooks/useReadings';
 import { groupReadingsBySensor } from '@/app/lib/sensorData';
 import {
   buildBucketedSeries,
-  buildLocationComparison,
   filterRowsBySensor,
 } from '@/app/lib/readings/chartSeries';
 import { DashboardPage } from '@/app/components/layout/DashboardPage';
@@ -48,8 +45,11 @@ import { tabBtn } from '@/app/lib/dashboardStyles';
 import ExportPanel from '@/app/components/reports/ExportPanel';
 
 export default function DataDashboard() {
+  const { user } = useAuth();
+  // Only sensor owners get the reports & export tools.
+  const isOwner = String(user?.role || '').toLowerCase() === 'owner';
   const [searchParams, setSearchParams] = useSearchParams();
-  const view = searchParams.get('tab') === 'export' ? 'export' : 'analytics';
+  const view = isOwner && searchParams.get('tab') === 'export' ? 'export' : 'analytics';
   const setView = (id) => setSearchParams(id === 'analytics' ? {} : { tab: id });
   const [selectedSensor, setSelectedSensor] = useState("");
   const [timeRange, setTimeRange] = useState("7d");
@@ -88,11 +88,6 @@ export default function DataDashboard() {
   const chartData = useMemo(
     () => buildBucketedSeries(filteredRows, bucketMinutes),
     [filteredRows, bucketMinutes]
-  );
-
-  const comparisonData = useMemo(
-    () => buildLocationComparison(rows, 12),
-    [rows]
   );
 
   const availableSeries = useMemo(() => {
@@ -170,27 +165,16 @@ export default function DataDashboard() {
     }));
   };
 
-  const handleExportCSV = () => {
-    const headers = ["timeLabel", ...availableSeries];
-    const csvData = tableData.map(row => 
-      headers.map(header => row[header] ?? "").join(",")
-    );
-    const csv = [headers.join(","), ...csvData].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `sensor_data_${selectedSensor}_${new Date().toISOString()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <DashboardPage>
       <PageHeader
-        badge="Analytics & Reports"
+        badge={isOwner ? 'Analytics & Reports' : 'Analytics'}
         title="Data dashboard"
-        description="Charts, comparisons, and customizable data exports."
+        description={
+          isOwner
+            ? 'Charts and customizable data exports.'
+            : 'Charts and trends for the sensor network.'
+        }
         action={
           view === 'analytics' ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-elevated px-4 py-2 text-sm">
@@ -209,14 +193,16 @@ export default function DataDashboard() {
         }
       />
 
-      <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-3">
-        <button type="button" className={tabBtn(view === 'analytics')} onClick={() => setView('analytics')}>
-          Analytics
-        </button>
-        <button type="button" className={tabBtn(view === 'export')} onClick={() => setView('export')}>
-          Reports & export
-        </button>
-      </div>
+      {isOwner && (
+        <div className="mb-6 flex flex-wrap gap-2 border-b border-border pb-3">
+          <button type="button" className={tabBtn(view === 'analytics')} onClick={() => setView('analytics')}>
+            Analytics
+          </button>
+          <button type="button" className={tabBtn(view === 'export')} onClick={() => setView('export')}>
+            Reports & export
+          </button>
+        </div>
+      )}
 
       {view === 'export' ? (
         <ExportPanel />
@@ -230,10 +216,6 @@ export default function DataDashboard() {
               <Filter className="h-5 w-5 text-brand-700" />
               <h3 className="text-lg font-semibold text-foreground">Filters</h3>
             </div>
-            <Button type="button" variant="secondary" size="sm" onClick={handleExportCSV}>
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
@@ -342,19 +324,6 @@ export default function DataDashboard() {
               </LineChart>
             </ResponsiveContainer>
           )}
-        </div>
-
-        <div className={panel('mb-6')}>
-          <h3 className="mb-4 text-lg font-semibold text-foreground">Location comparison</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={comparisonData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="name" stroke="var(--color-muted)" fontSize={11} />
-              <YAxis stroke="var(--color-muted)" fontSize={12} />
-              <Tooltip />
-              <Bar dataKey="AQI" fill="var(--color-brand-600)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
         </div>
 
         <div className={panel()}>

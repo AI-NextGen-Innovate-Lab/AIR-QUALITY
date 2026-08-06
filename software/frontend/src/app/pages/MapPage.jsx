@@ -142,7 +142,11 @@ export function MapPage() {
                         className="w-full mt-3"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/sensor/${encodeURIComponent(sensor.id)}`);
+                          navigate(
+                            user
+                              ? `/sensor/${encodeURIComponent(sensor.id)}`
+                              : '/login'
+                          );
                         }}
                       >
                         View details

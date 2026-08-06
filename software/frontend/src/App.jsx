@@ -33,7 +33,16 @@ function App() {
             <Route path="/map" element={<MapPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/api-docs" element={<APIDocumentation />} />
-            <Route path="/sensor/:sensorId" element={<LocationDetails />} />
+
+            {/* Sensor details require sign-in */}
+            <Route
+              path="/sensor/:sensorId"
+              element={
+                <ProtectedRoutes>
+                  <LocationDetails />
+                </ProtectedRoutes>
+              }
+            />
 
             <Route
               path="/dashboard"
@@ -65,7 +74,7 @@ function App() {
             <Route
               path="/download"
               element={
-                <ProtectedRoutes roles={['user', 'owner']}>
+                <ProtectedRoutes roles={['owner']}>
                   <Download />
                 </ProtectedRoutes>
               }
